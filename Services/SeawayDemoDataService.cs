@@ -28,7 +28,7 @@ public class SeawayDemoDataService
             LastSeen = DateTime.UtcNow.ToString("dd MMM HH:mm"),
             UnitKind = "Merchant Vessel",
             Icon = "ship",
-            CameraUrl = "http://103.245.39.218:8080/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123",
+            CameraUrl = "/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123",
             LocationStatus = "lokasi tidak sesuai",
             LocationNote = "Snapshot fallback digunakan karena data lokasi belum tersedia.",
             RawLatitude = "1027590",

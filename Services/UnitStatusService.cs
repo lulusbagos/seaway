@@ -6,8 +6,8 @@ namespace SeaWay.Services;
 
 public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterService unitMasterService)
 {
-    private const string CameraUrl =
-        "http://103.245.39.218:8080/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123";
+    private const string DefaultCameraUrl =
+        "/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123";
     private const double KaliorangCenterLatitude = 0.8951769;
     private const double KaliorangCenterLongitude = 117.8338478;
     private const double KaliorangValidRadiusMeters = 15000;
@@ -55,7 +55,7 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
         var gpsStatusUrl = unit?.GpsStatusUrl ?? "http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action";
         var unitName = unit?.UnitName ?? "RD4003 - SeaWay Live Unit";
         var unitCode = unit?.UnitCode ?? "RD4003";
-        var cameraUrl = unit?.CameraUrl ?? CameraUrl;
+        var cameraUrl = NormalizeCameraUrl(unit?.CameraUrl ?? DefaultCameraUrl);
         var iconKey = unit?.IconKey ?? "ship";
         var unitType = unit?.UnitType ?? "Merchant Vessel";
         var unitDetail = unit?.UnitDetail ?? "Live GPS/AIS unit untuk monitoring operasional SeaWay.";
@@ -179,7 +179,7 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
             LastSeen = DateTime.UtcNow.ToString("dd MMM HH:mm"),
             UnitKind = "Merchant Vessel",
             Icon = "ship",
-            CameraUrl = CameraUrl,
+            CameraUrl = DefaultCameraUrl,
             LocationStatus = "lokasi tidak sesuai",
             LocationNote = "Snapshot fallback digunakan karena data lokasi belum tersedia.",
             RawLatitude = "1027590",
@@ -289,6 +289,31 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
     private static bool IsWithinKaliorangArea(double latitude, double longitude)
     {
         return HaversineDistanceMeters(latitude, longitude, KaliorangCenterLatitude, KaliorangCenterLongitude) <= KaliorangValidRadiusMeters;
+    }
+
+    private static string NormalizeCameraUrl(string cameraUrl)
+    {
+        if (string.IsNullOrWhiteSpace(cameraUrl))
+        {
+            return DefaultCameraUrl;
+        }
+
+        if (Uri.TryCreate(cameraUrl, UriKind.Absolute, out var absoluteUri))
+        {
+            if (absoluteUri.Host.Equals("103.245.39.218", StringComparison.OrdinalIgnoreCase) && absoluteUri.Port == 8080)
+            {
+                return $"{absoluteUri.AbsolutePath}{absoluteUri.Query}";
+            }
+
+            return cameraUrl;
+        }
+
+        if (!cameraUrl.StartsWith('/'))
+        {
+            return $"/808gps/{cameraUrl.TrimStart('/')}";
+        }
+
+        return cameraUrl;
     }
 
     private static double HaversineDistanceMeters(double lat1, double lon1, double lat2, double lon2)

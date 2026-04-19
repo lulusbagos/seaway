@@ -151,7 +151,7 @@ public static class DatabaseInitializer
                 '221083241090',
                 '7725f0b6e9404a5d86bb6ccab539db9e',
                 'http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action',
-                'http://103.245.39.218:8080/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123',
+                '/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123',
                 '/image/ship.png',
                 'ship',
                 'Merchant Vessel',

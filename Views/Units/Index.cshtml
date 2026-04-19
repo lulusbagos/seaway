@@ -221,7 +221,8 @@
 
                     <div>
                         <label asp-for="EditUnit.CameraUrl">Camera URL</label>
-                        <textarea asp-for="EditUnit.CameraUrl" class="field-control" rows="3" placeholder="http://103.245.39.218:8080/808gps/open/player/video.html?..."></textarea>
+                        <textarea asp-for="EditUnit.CameraUrl" class="field-control" rows="3" placeholder="/808gps/open/player/video.html?..."></textarea>
+                        <div class="field-hint">SeaWay akan memproksikan URL kamera vendor agar aman di domain HTTPS.</div>
                     </div>
 
                     <div>
