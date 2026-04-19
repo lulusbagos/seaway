@@ -6,6 +6,7 @@ using SeaWay.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpClient();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -14,10 +15,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<SeawayDemoDataService>();
+builder.Services.AddScoped<UnitMasterService>();
+builder.Services.AddScoped<UnitStatusService>();
 var connectionString =
     Environment.GetEnvironmentVariable("SEAWAY_PG_CONNECTION")
     ?? builder.Configuration.GetConnectionString("Postgres")
-    ?? "Host=localhost;Port=5432;Database=seaway;Username=postgres;Password=postgres";
+    ?? "Host=172.16.1.96;Port=5432;Database=DB_SEA_WAY;Username=postgres;Password=index.123";
 builder.Services.AddDbContext<SeaWayDbContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -26,7 +29,15 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<SeaWayDbContext>();
-    await DatabaseInitializer.InitializeAsync(dbContext);
+    try
+    {
+        await DatabaseInitializer.InitializeAsync(dbContext);
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseInitializer");
+        logger.LogWarning(ex, "Database bootstrap skipped because PostgreSQL was unavailable.");
+    }
 }
 
 // Configure the HTTP request pipeline.

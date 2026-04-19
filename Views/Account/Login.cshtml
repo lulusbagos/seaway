@@ -26,29 +26,51 @@
 
             <div class="auth-hero-brand">
                 <div class="auth-hero-brand-mark">
+                    <span class="brand-sweep" aria-hidden="true"></span>
                     <span class="brand-pulse"></span>
                 </div>
                 <div class="auth-hero-brand-copy">
-                    <span class="auth-hero-kicker auth-hero-kicker-alt">Tha se vro</span>
-                    <h1 class="auth-title">
-                        <span>SEA</span>
-                        <span>WAY</span>
+                    <h1 class="auth-title" aria-label="SEA WAY">
+                        <span class="auth-title-sea">SEA</span>
+                        <span class="auth-title-way">WAY</span>
                     </h1>
+                    <div class="auth-subline">
+                        <span class="auth-subline-dot"></span>
+                        <span class="auth-subline-text">Tha se vro</span>
+                    </div>
                 </div>
             </div>
         </section>
 
         <section class="auth-panel">
+            <div class="auth-panel-metrics" aria-hidden="true">
+                <span>UTC+08</span>
+                <span>DB Sync</span>
+                <span>Role Bound</span>
+            </div>
+            <div class="auth-panel-grid" aria-hidden="true"></div>
+            <div class="auth-loading-overlay" aria-hidden="true">
+                <div class="auth-loading-core">
+                    <div class="auth-loading-ring"></div>
+                    <div class="auth-loading-ring auth-loading-ring-alt"></div>
+                    <div class="auth-loading-mark"></div>
+                </div>
+                <div class="auth-loading-copy">Authenticating SeaWay</div>
+            </div>
             <div class="auth-card">
                 <div class="auth-card-header">
-                    <div class="panel-eyebrow">Secure Access</div>
-                    <h2>Masuk ke SeaWay</h2>
-                    <p>Gunakan salah satu user dummy di bawah atau masukkan manual.</p>
+                    <div class="panel-eyebrow">Direct DB Access</div>
+                    <h2>SeaWay Control Portal</h2>
+                </div>
+
+                <div class="auth-card-status-row" aria-hidden="true">
+                    <span class="auth-status-pill active"><span class="auth-status-dot"></span> DB online</span>
+                    <span class="auth-status-pill"><span class="auth-status-bar"></span> Secure session</span>
                 </div>
 
                 <div class="auth-card-glow" aria-hidden="true"></div>
 
-                <form asp-action="Login" method="post" class="form-stack">
+                <form asp-action="Login" method="post" class="form-stack auth-login-form">
                     @Html.AntiForgeryToken()
                     <div asp-validation-summary="ModelOnly" class="text-danger auth-summary"></div>
 
@@ -60,18 +82,8 @@
 
                     <div>
                         <label asp-for="Password"></label>
-                        <input asp-for="Password" class="field-control" placeholder="operator123" />
+                        <input asp-for="Password" class="field-control" placeholder="••••••••" />
                         <span asp-validation-for="Password" class="text-danger"></span>
-                    </div>
-
-                    <div>
-                        <label asp-for="Role"></label>
-                        <select asp-for="Role" class="field-select">
-                            <option>Fleet Operator</option>
-                            <option>Port Captain</option>
-                            <option>Fleet Admin</option>
-                            <option>Viewer</option>
-                        </select>
                     </div>
 
                     <div class="form-check">
@@ -79,22 +91,11 @@
                         <label asp-for="RememberMe" class="form-check-label">Ingat perangkat ini</label>
                     </div>
 
-                    <button type="submit" class="submit-button">Masuk ke Dashboard</button>
+                    <button type="submit" class="submit-button">
+                        <span class="submit-button-label">Akses Control Room</span>
+                        <span class="submit-button-spinner" aria-hidden="true"></span>
+                    </button>
                 </form>
-
-                <div class="note-card">
-                    User dummy tersimpan plaintext sesuai instruksi. Saya tidak menerapkan enkripsi password pada prototype ini.
-                </div>
-
-                <div class="demo-account-grid">
-                    @foreach (var account in Model.DemoAccounts)
-                    {
-                        <div class="demo-account">
-                            <strong>@account.UserName / @account.Password</strong>
-                            <span>@account.Role · @account.Description</span>
-                        </div>
-                    }
-                </div>
 
                 <div class="auth-copyright">
                     Developed and Maintained by System Integration Department PT Indexim Coalindo
@@ -106,5 +107,6 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
     <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
 </body>
 </html>

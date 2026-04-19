@@ -70,12 +70,19 @@ public class AccountController(SeaWayDbContext dbContext, SeawayDemoDataService 
             new AuthenticationProperties
             {
                 IsPersistent = model.RememberMe,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                ExpiresUtc = model.RememberMe
+                    ? DateTimeOffset.UtcNow.AddDays(7)
+                    : null
             });
 
         await WriteLoginAuditAsync(user, user.Username, roleName, "success");
 
-        return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl : Url.Action("Index", "Dashboard")!);
+        if (Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        return LocalRedirect(Url.Action("Index", "Dashboard", new { boot = 1 })!);
     }
 
     [Authorize]

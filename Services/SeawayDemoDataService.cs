@@ -4,36 +4,63 @@ namespace SeaWay.Services;
 
 public class SeawayDemoDataService
 {
-    public DashboardViewModel GetDashboard()
+    public DashboardViewModel GetDashboard(UnitStatusSnapshotViewModel? liveUnit = null)
     {
+        liveUnit ??= new UnitStatusSnapshotViewModel
+        {
+            DeviceId = "221083241090",
+            UnitCode = "RD4003",
+            VehicleId = "RD4003",
+            Name = "RD4003 - SeaWay Live Unit",
+            UnitName = "RD4003 - SeaWay Live Unit",
+            UnitDetail = "Live GPS/AIS unit untuk monitoring operasional SeaWay.",
+            Status = "online",
+            IsOnline = true,
+            Network = "NET 3",
+            Gateway = "G1",
+            SessionToken = "7725f0b6e9404a5d86bb6ccab539db9e",
+            GpsStatusUrl = "http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action",
+            SpeedLabel = "28.0 kn",
+            Heading = "358 deg",
+            Latitude = 1.009485,
+            Longitude = 117.657333,
+            PositionText = "1.009485,117.657333",
+            LastSeen = DateTime.UtcNow.ToString("dd MMM HH:mm"),
+            UnitKind = "Merchant Vessel",
+            Icon = "ship",
+            CameraUrl = "http://103.245.39.218:8080/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123",
+            LocationStatus = "lokasi tidak sesuai",
+            LocationNote = "Snapshot fallback digunakan karena data lokasi belum tersedia.",
+            RawLatitude = "1027590",
+            RawLongitude = "117658300",
+            DecimalLatitude = "1.027590",
+            DecimalLongitude = "117.658300",
+            Trail = []
+        };
+
         return new DashboardViewModel
         {
+            LiveUnit = liveUnit,
+            MapCenterLatitude = -2.55,
+            MapCenterLongitude = 118.65,
+            MapZoom = 6,
             Kpis =
             [
-                new() { Label = "Kapal Online", Value = "24", Change = "+3 sejak 06:00", ChangeTone = "positive", Icon = "bi-broadcast-pin" },
-                new() { Label = "Alert Aktif", Value = "05", Change = "2 kritikal", ChangeTone = "warning", Icon = "bi-exclamation-triangle" },
-                new() { Label = "Geofence Trigger", Value = "03", Change = "Selat Makassar", ChangeTone = "warning", Icon = "bi-bounding-box" },
-                new() { Label = "Rata-rata Kecepatan", Value = "14.8 kn", Change = "bulk carrier mix", ChangeTone = "positive", Icon = "bi-speedometer2" }
+                new() { Label = "Unit Online", Value = liveUnit.IsOnline ? "1" : "0", Change = liveUnit.DeviceId, ChangeTone = "positive", Icon = "bi-broadcast-pin" },
+                new() { Label = "Status", Value = liveUnit.Status.ToUpperInvariant(), Change = liveUnit.Network, ChangeTone = liveUnit.IsOnline ? "positive" : "warning", Icon = "bi-exclamation-triangle" },
+                new() { Label = "Gateway", Value = liveUnit.Gateway, Change = liveUnit.PositionText, ChangeTone = "positive", Icon = "bi-bounding-box" },
+                new() { Label = "Speed", Value = liveUnit.SpeedLabel, Change = liveUnit.Heading, ChangeTone = "positive", Icon = "bi-speedometer2" }
             ],
             MapSignals =
-            [
-                new() { Name = "MV Ocean Crown", Status = "online", SpeedLabel = "16.2 kn", X = 28, Y = 29 },
-                new() { Name = "MT Nusantara Star", Status = "warning", SpeedLabel = "12.5 kn", X = 59, Y = 48 },
-                new() { Name = "KM Seaway Ranger", Status = "online", SpeedLabel = "15.9 kn", X = 76, Y = 31 },
-                new() { Name = "MV Aruna Tide", Status = "alert", SpeedLabel = "0.8 kn", X = 67, Y = 68 }
-            ],
+            [],
             Alerts =
             [
-                new() { Severity = "critical", Title = "Kapal berhenti di luar koridor", VesselName = "MV Aruna Tide", Description = "Last position dekat zona terlarang 4.2 nm dari rute normal.", OccurredAt = "08:42 WITA" },
-                new() { Severity = "warning", Title = "AIS delay di atas 12 menit", VesselName = "MT Nusantara Star", Description = "Perlu validasi perangkat, sinyal terakhir masuk dari sektor timur.", OccurredAt = "08:28 WITA" },
-                new() { Severity = "info", Title = "ETA berubah akibat angin samping", VesselName = "KM Seaway Ranger", Description = "Prediksi sandar mundur 18 menit dari baseline voyage plan.", OccurredAt = "07:56 WITA" }
+                new() { Severity = "info", Title = "Live unit synced", VesselName = liveUnit.VehicleId, Description = $"Position {liveUnit.PositionText} from API snapshot.", OccurredAt = liveUnit.LastSeen },
+                new() { Severity = "warning", Title = "Track history active", VesselName = liveUnit.VehicleId, Description = "Playback trail ready for monitoring and replay.", OccurredAt = "Realtime" }
             ],
             ActiveVessels =
             [
-                new() { Name = "MV Ocean Crown", Imo = "IMO 9820341", Status = "Live", Destination = "Balikpapan Port", Speed = "16.2 kn", Heading = "124° SE", LastUpdate = "20 detik lalu" },
-                new() { Name = "MT Nusantara Star", Imo = "IMO 9731194", Status = "Watch", Destination = "Samarinda Anchorage", Speed = "12.5 kn", Heading = "086° E", LastUpdate = "3 menit lalu" },
-                new() { Name = "KM Seaway Ranger", Imo = "IMO 9682250", Status = "Live", Destination = "Makassar New Port", Speed = "15.9 kn", Heading = "204° SW", LastUpdate = "44 detik lalu" },
-                new() { Name = "MV Aruna Tide", Imo = "IMO 9901128", Status = "Alert", Destination = "Holding Area Delta", Speed = "0.8 kn", Heading = "018° N", LastUpdate = "1 menit lalu" }
+                new() { Name = liveUnit.Name, Imo = liveUnit.DeviceId, Status = liveUnit.Status.Equals("online", StringComparison.OrdinalIgnoreCase) ? "Live" : "Alert", Destination = liveUnit.PositionText, Speed = liveUnit.SpeedLabel, Heading = liveUnit.Heading, LastUpdate = liveUnit.LastSeen }
             ],
             Geofences =
             [
@@ -50,9 +77,9 @@ public class SeawayDemoDataService
             ],
             Timeline =
             [
-                new() { Time = "08:46", Title = "Playback tersimpan", Description = "Rute MV Ocean Crown 6 jam terakhir berhasil diarsipkan." },
-                new() { Time = "08:30", Title = "Geofence breach", Description = "MV Aruna Tide memotong batas Restricted Energy Corridor." },
-                new() { Time = "07:52", Title = "Voyage plan update", Description = "ETA KM Seaway Ranger di-refresh otomatis dari feed cuaca." }
+                new() { Time = "08:46", Title = "Snapshot synced", Description = $"Last position {liveUnit.PositionText} saved from device {liveUnit.DeviceId}." },
+                new() { Time = "08:30", Title = "Track playback ready", Description = "API unit history is available for replay and route review." },
+                new() { Time = "07:52", Title = "Realtime poll active", Description = "Dashboard refreshes the device status every 5 seconds." }
             ]
         };
     }
@@ -124,3 +151,4 @@ public class SeawayDemoDataService
         ];
     }
 }
+

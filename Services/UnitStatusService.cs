@@ -1,0 +1,308 @@
+using System.Text.Json;
+using SeaWay.Data.Entities;
+using SeaWay.Models.ViewModels;
+
+namespace SeaWay.Services;
+
+public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterService unitMasterService)
+{
+    private const string CameraUrl =
+        "http://103.245.39.218:8080/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123";
+    private const double KaliorangCenterLatitude = 0.8951769;
+    private const double KaliorangCenterLongitude = 117.8338478;
+    private const double KaliorangValidRadiusMeters = 15000;
+
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly List<UnitStatusTrailPointViewModel> _trail = [];
+    private UnitStatusSnapshotViewModel? _cachedSnapshot;
+    private DateTimeOffset _cachedAt = DateTimeOffset.MinValue;
+
+    public async Task<UnitStatusSnapshotViewModel> GetSnapshotAsync(bool forceRefresh = false)
+    {
+        if (!forceRefresh && _cachedSnapshot is not null && DateTimeOffset.UtcNow - _cachedAt < TimeSpan.FromSeconds(5))
+        {
+            return _cachedSnapshot;
+        }
+
+        await _gate.WaitAsync();
+        try
+        {
+            if (!forceRefresh && _cachedSnapshot is not null && DateTimeOffset.UtcNow - _cachedAt < TimeSpan.FromSeconds(5))
+            {
+                return _cachedSnapshot;
+            }
+
+            var snapshot = await FetchSnapshotAsync();
+            _cachedSnapshot = snapshot;
+            _cachedAt = DateTimeOffset.UtcNow;
+            return snapshot;
+        }
+        catch
+        {
+            return _cachedSnapshot ?? CreateFallbackSnapshot();
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<UnitStatusSnapshotViewModel> FetchSnapshotAsync()
+    {
+        var unit = await unitMasterService.GetActiveAsync();
+        var deviceId = unit?.DeviceIdNo ?? "221083241090";
+        var sessionToken = unit?.SessionToken ?? "7725f0b6e9404a5d86bb6ccab539db9e";
+        var gpsStatusUrl = unit?.GpsStatusUrl ?? "http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action";
+        var unitName = unit?.UnitName ?? "RD4003 - SeaWay Live Unit";
+        var unitCode = unit?.UnitCode ?? "RD4003";
+        var cameraUrl = unit?.CameraUrl ?? CameraUrl;
+        var iconKey = unit?.IconKey ?? "ship";
+        var unitType = unit?.UnitType ?? "Merchant Vessel";
+        var unitDetail = unit?.UnitDetail ?? "Live GPS/AIS unit untuk monitoring operasional SeaWay.";
+
+        var client = httpClientFactory.CreateClient();
+        var requestUrl = $"{gpsStatusUrl}?jsession={Uri.EscapeDataString(sessionToken)}&devIdno={Uri.EscapeDataString(deviceId)}";
+        using var response = await client.GetAsync(requestUrl);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var document = await JsonDocument.ParseAsync(stream);
+
+        var root = document.RootElement;
+        var statusArray = root.GetProperty("status");
+        var item = statusArray.GetArrayLength() > 0 ? statusArray[0] : default;
+
+        if (statusArray.GetArrayLength() == 0)
+        {
+            return CreateFallbackSnapshot();
+        }
+
+        var apiDeviceId = GetString(item, "id", deviceId);
+        var vehicleId = GetString(item, "vid", "RD4003");
+        var rawLatitude = GetRawCoordinate(item, "lat", "0");
+        var rawLongitude = GetRawCoordinate(item, "lng", "0");
+        var latitude = GetCoordinate(item, "mlat", "lat", -2.55);
+        var longitude = GetCoordinate(item, "mlng", "lng", 118.65);
+        var speedRaw = GetInt(item, "sp", 0);
+        var headingRaw = GetInt(item, "hx", 0);
+        var online = GetInt(item, "ol", 0) == 1;
+        var net = GetInt(item, "net", 0);
+        var gateway = GetString(item, "gw", "-");
+        var gt = GetString(item, "gt", DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
+        var gpsTime = DateTime.TryParse(gt, out var parsedGt)
+            ? DateTime.SpecifyKind(parsedGt, DateTimeKind.Unspecified)
+            : DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+
+        var trailPoint = new UnitStatusTrailPointViewModel
+        {
+            Latitude = latitude,
+            Longitude = longitude,
+            Label = gpsTime.ToString("HH:mm:ss")
+        };
+
+        if (_trail.Count == 0 || IsDifferent(_trail[^1], trailPoint))
+        {
+            _trail.Add(trailPoint);
+        }
+
+        while (_trail.Count > 24)
+        {
+            _trail.RemoveAt(0);
+        }
+
+        var locationStatus = IsWithinKaliorangArea(latitude, longitude)
+            ? "lokasi sesuai"
+            : "lokasi tidak sesuai";
+        var locationNote = IsWithinKaliorangArea(latitude, longitude)
+            ? "Koordinat berada dalam area Kaliorang."
+            : "Koordinat berada di luar area Kaliorang.";
+
+        return new UnitStatusSnapshotViewModel
+        {
+            DeviceId = apiDeviceId,
+            UnitCode = unitCode,
+            VehicleId = vehicleId,
+            Name = unitName,
+            UnitName = unitName,
+            UnitDetail = unitDetail,
+            Status = online ? "online" : "alert",
+            IsOnline = online,
+            Network = $"NET {net}",
+            Gateway = gateway,
+            SessionToken = sessionToken,
+            GpsStatusUrl = gpsStatusUrl,
+            SpeedLabel = $"{speedRaw / 10.0:0.0} kn",
+            Heading = $"{headingRaw} deg",
+            Latitude = latitude,
+            Longitude = longitude,
+            PositionText = $"{latitude:0.######},{longitude:0.######}",
+            LastSeen = gpsTime.ToString("dd MMM HH:mm"),
+            UnitKind = unitType,
+            Icon = iconKey,
+            CameraUrl = cameraUrl,
+            LocationStatus = locationStatus,
+            LocationNote = locationNote,
+            RawLatitude = rawLatitude,
+            RawLongitude = rawLongitude,
+            DecimalLatitude = latitude.ToString("0.######"),
+            DecimalLongitude = longitude.ToString("0.######"),
+            Trail = _trail.ToList()
+        };
+    }
+
+    private static bool IsDifferent(UnitStatusTrailPointViewModel a, UnitStatusTrailPointViewModel b)
+    {
+        return Math.Abs(a.Latitude - b.Latitude) > 0.000001 || Math.Abs(a.Longitude - b.Longitude) > 0.000001;
+    }
+
+    private static UnitStatusSnapshotViewModel CreateFallbackSnapshot()
+    {
+        return new UnitStatusSnapshotViewModel
+        {
+            DeviceId = "221083241090",
+            UnitCode = "RD4003",
+            VehicleId = "RD4003",
+            Name = "RD4003 - SeaWay Live Unit",
+            UnitName = "RD4003 - SeaWay Live Unit",
+            UnitDetail = "Snapshot fallback digunakan karena data lokasi belum tersedia.",
+            Status = "online",
+            IsOnline = true,
+            Network = "NET 3",
+            Gateway = "G1",
+            SessionToken = "7725f0b6e9404a5d86bb6ccab539db9e",
+            GpsStatusUrl = "http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action",
+            SpeedLabel = "28.0 kn",
+            Heading = "358 deg",
+            Latitude = 1.027590,
+            Longitude = 117.658300,
+            PositionText = "1.02759,117.6583",
+            LastSeen = DateTime.UtcNow.ToString("dd MMM HH:mm"),
+            UnitKind = "Merchant Vessel",
+            Icon = "ship",
+            CameraUrl = CameraUrl,
+            LocationStatus = "lokasi tidak sesuai",
+            LocationNote = "Snapshot fallback digunakan karena data lokasi belum tersedia.",
+            RawLatitude = "1027590",
+            RawLongitude = "117658300",
+            DecimalLatitude = "1.027590",
+            DecimalLongitude = "117.658300",
+            Trail = []
+        };
+    }
+
+    private static string GetString(JsonElement element, string propertyName, string fallback)
+    {
+        if (element.ValueKind == JsonValueKind.Undefined || element.ValueKind == JsonValueKind.Null)
+        {
+            return fallback;
+        }
+
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return fallback;
+        }
+
+        return property.ToString() ?? fallback;
+    }
+
+    private static int GetInt(JsonElement element, string propertyName, int fallback)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return fallback;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.Number when property.TryGetInt32(out var value) => value,
+            JsonValueKind.String when int.TryParse(property.GetString(), out var stringValue) => stringValue,
+            _ => fallback
+        };
+    }
+
+    private static double GetDouble(JsonElement element, string propertyName, double fallback)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return fallback;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.Number when property.TryGetDouble(out var value) => value,
+            JsonValueKind.String when double.TryParse(property.GetString(), out var stringValue) => stringValue,
+            _ => fallback
+        };
+    }
+
+    private static double GetCoordinate(JsonElement element, string decimalPropertyName, string rawPropertyName, double fallback)
+    {
+        var decimalValue = GetScaledCoordinate(element, decimalPropertyName, double.NaN);
+        if (!double.IsNaN(decimalValue))
+        {
+            return decimalValue;
+        }
+
+        if (!element.TryGetProperty(rawPropertyName, out var rawProperty))
+        {
+            return fallback;
+        }
+
+        return rawProperty.ValueKind switch
+        {
+            JsonValueKind.Number when rawProperty.TryGetDouble(out var rawNumber) => NormalizeCoordinate(rawNumber),
+            JsonValueKind.String when double.TryParse(rawProperty.GetString(), out var rawStringValue) => NormalizeCoordinate(rawStringValue),
+            _ => fallback
+        };
+    }
+
+    private static double GetScaledCoordinate(JsonElement element, string propertyName, double fallback)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return fallback;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.Number when property.TryGetDouble(out var value) => NormalizeCoordinate(value),
+            JsonValueKind.String when double.TryParse(property.GetString(), out var stringValue) => NormalizeCoordinate(stringValue),
+            _ => fallback
+        };
+    }
+
+    private static double NormalizeCoordinate(double value)
+    {
+        return Math.Abs(value) > 1000d ? value / 1_000_000d : value;
+    }
+
+    private static string GetRawCoordinate(JsonElement element, string propertyName, string fallback)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return fallback;
+        }
+
+        return property.ToString() ?? fallback;
+    }
+
+    private static bool IsWithinKaliorangArea(double latitude, double longitude)
+    {
+        return HaversineDistanceMeters(latitude, longitude, KaliorangCenterLatitude, KaliorangCenterLongitude) <= KaliorangValidRadiusMeters;
+    }
+
+    private static double HaversineDistanceMeters(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double earthRadiusMeters = 6_371_000d;
+        var dLat = DegreesToRadians(lat2 - lat1);
+        var dLon = DegreesToRadians(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                + Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2))
+                * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return earthRadiusMeters * c;
+    }
+
+    private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180d;
+
+}

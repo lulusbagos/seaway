@@ -1,0 +1,294 @@
+@model SeaWay.Models.ViewModels.UnitSettingsViewModel
+
+@{
+    var totalUnits = Model.Units.Count;
+    var activeUnits = Model.Units.Count(unit => unit.IsActive);
+    var defaultUnits = Model.Units.Count(unit => unit.IsDefault);
+    var selectedImage = string.IsNullOrWhiteSpace(Model.EditUnit.UnitImageUrl)
+        ? Url.Content("~/image/ship.png")
+        : Model.EditUnit.UnitImageUrl;
+}
+
+<div class="unit-admin-shell">
+    <section class="unit-hero">
+        <div class="unit-hero-copy">
+            <div class="panel-eyebrow">Master Unit Registry</div>
+            <h2 class="panel-title">Manage GPS units at scale</h2>
+            <p class="panel-copy">
+                Kelola banyak unit dari satu layar. Simpan `id_unit`, session, nama, icon, image, dan metadata integrasi dengan alur kerja yang konsisten.
+            </p>
+            <div class="unit-hero-actions">
+                <a class="btn btn-light unit-hero-btn" asp-action="Index">
+                    <i class="bi bi-plus-lg"></i>
+                    New unit
+                </a>
+                <a class="btn btn-outline-light unit-hero-btn" asp-controller="Dashboard" asp-action="Index">
+                    <i class="bi bi-arrow-left"></i>
+                    Back to dashboard
+                </a>
+            </div>
+        </div>
+
+        <div class="unit-hero-metrics">
+            <div class="unit-hero-metric">
+                <span>Total Units</span>
+                <strong>@totalUnits</strong>
+                <small>all records</small>
+            </div>
+            <div class="unit-hero-metric">
+                <span>Active</span>
+                <strong>@activeUnits</strong>
+                <small>online ready</small>
+            </div>
+            <div class="unit-hero-metric">
+                <span>Default</span>
+                <strong>@defaultUnits</strong>
+                <small>primary unit</small>
+            </div>
+        </div>
+    </section>
+
+    @if (TempData["UnitMessage"] is string message)
+    {
+        <div class="badge-soft live mb-3">@message</div>
+    }
+
+    <section class="unit-dashboard-grid">
+        <article class="card-panel unit-list-panel">
+            <div class="panel-header unit-list-header">
+                <div>
+                    <div class="panel-eyebrow">Unit Registry</div>
+                    <h3 class="panel-title">Operational table</h3>
+                    <p class="panel-copy">Cari, buka, dan edit unit di sini. Cocok untuk konfigurasi beberapa kapal sekaligus.</p>
+                </div>
+
+                <div class="unit-toolbar">
+                    <div class="unit-search-wrap">
+                        <i class="bi bi-search"></i>
+                        <input id="unitSearchBox" type="text" placeholder="Cari unit, id, session, type..." />
+                    </div>
+                    <div class="unit-filter-row">
+                        <button type="button" class="map-layer-chip active" data-unit-filter="all">All</button>
+                        <button type="button" class="map-layer-chip" data-unit-filter="active">Active</button>
+                        <button type="button" class="map-layer-chip" data-unit-filter="default">Default</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="unit-table-wrap">
+                <table class="unit-table" id="unitTable">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>ID Unit</th>
+                            <th>Session</th>
+                            <th>Type</th>
+                            <th>Image</th>
+                            <th>Status</th>
+                            <th>Flag</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var unit in Model.Units)
+                        {
+                            var isSelected = unit.UnitId == Model.EditUnit.UnitId;
+                            var imageUrl = string.IsNullOrWhiteSpace(unit.UnitImageUrl) ? Url.Content("~/image/ship.png") : unit.UnitImageUrl!;
+                            var searchText = $"{unit.UnitName} {unit.UnitCode} {unit.DeviceIdNo} {unit.SessionToken} {unit.UnitType}".ToLowerInvariant();
+                            var rowState = unit.IsDefault ? "default" : unit.IsActive ? "active" : "inactive";
+
+                            <tr class="unit-table-row @(isSelected ? "is-selected" : string.Empty)"
+                                data-unit-search="@searchText"
+                                data-unit-state="@rowState"
+                                data-unit-id="@unit.UnitId">
+                                <td>
+                                    <div class="unit-cell-main">
+                                        <div class="unit-thumb">
+                                            <img src="@imageUrl" alt="@unit.UnitName" />
+                                        </div>
+                                        <div>
+                                            <div class="unit-name">@unit.UnitName</div>
+                                            <div class="unit-sub">@unit.UnitCode</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="unit-mono">@unit.DeviceIdNo</td>
+                                <td class="unit-mono">@unit.SessionToken[..Math.Min(10, unit.SessionToken.Length)]...</td>
+                                <td>@(unit.UnitType ?? "-")</td>
+                                <td>
+                                    <span class="unit-mini-thumb">
+                                        <img src="@imageUrl" alt="@unit.UnitName" />
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge-soft @(unit.IsActive ? "live" : "warn")">@(unit.IsActive ? "Active" : "Inactive")</span>
+                                </td>
+                                <td>
+                                    <span class="badge-soft @(unit.IsDefault ? "live" : "muted")">@(unit.IsDefault ? "Default" : "Secondary")</span>
+                                </td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-light unit-action-btn" asp-action="Index" asp-route-unitId="@unit.UnitId">Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <aside class="card-panel unit-editor-panel">
+            <div class="unit-editor-preview">
+                <div class="unit-editor-preview-image">
+                    <img src="@selectedImage" alt="Unit preview" />
+                </div>
+                <div class="unit-editor-preview-meta">
+                    <div class="panel-eyebrow">Current selection</div>
+                    <div class="unit-editor-preview-title">@(string.IsNullOrWhiteSpace(Model.EditUnit.UnitName) ? "New Unit" : Model.EditUnit.UnitName)</div>
+                    <div class="unit-editor-preview-copy">Preview image, ID, dan status akan tampil di dashboard setelah disimpan.</div>
+                </div>
+            </div>
+
+            <div class="unit-summary-strip">
+                <div class="unit-summary-item">
+                    <span>Unit Code</span>
+                    <strong>@(string.IsNullOrWhiteSpace(Model.EditUnit.UnitCode) ? "-" : Model.EditUnit.UnitCode)</strong>
+                </div>
+                <div class="unit-summary-item">
+                    <span>ID Unit</span>
+                    <strong>@(string.IsNullOrWhiteSpace(Model.EditUnit.DeviceIdNo) ? "-" : Model.EditUnit.DeviceIdNo)</strong>
+                </div>
+            </div>
+
+            <div class="panel-header unit-editor-header">
+                <div>
+                    <div class="panel-eyebrow">Add / Update</div>
+                    <h3 class="panel-title">Unit configuration</h3>
+                    <p class="panel-copy">Gunakan satu form ini untuk tambah unit baru atau update konfigurasi existing dengan cepat.</p>
+                </div>
+            </div>
+
+            <form asp-action="Save" method="post" enctype="multipart/form-data" class="unit-editor-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="EditUnit.UnitId" />
+
+                <div class="form-stack">
+                    <div class="unit-form-grid">
+                        <div>
+                            <label asp-for="EditUnit.UnitCode">Unit Code</label>
+                            <input asp-for="EditUnit.UnitCode" class="field-control" placeholder="RD4003" />
+                        </div>
+                        <div>
+                            <label asp-for="EditUnit.UnitName">Unit Name</label>
+                            <input asp-for="EditUnit.UnitName" class="field-control" placeholder="RD4003 - SeaWay Live Unit" />
+                        </div>
+                    </div>
+
+                    <div class="unit-form-grid">
+                        <div>
+                            <label asp-for="EditUnit.DeviceIdNo">ID Unit</label>
+                            <input asp-for="EditUnit.DeviceIdNo" class="field-control" placeholder="221083241090" />
+                        </div>
+                        <div>
+                            <label asp-for="EditUnit.SessionToken">Session</label>
+                            <input asp-for="EditUnit.SessionToken" class="field-control" placeholder="7725f0b6e9404a5d86bb6ccab539db9e" />
+                        </div>
+                    </div>
+
+                    <div class="unit-upload-box">
+                        <label asp-for="EditUnit.ImageFile">Unit Image</label>
+                        <input asp-for="EditUnit.ImageFile" class="field-control" type="file" accept="image/*" />
+                        <div class="unit-upload-hint">PNG, JPG, atau WEBP. File disimpan ke `wwwroot/uploads/units`.</div>
+                    </div>
+
+                    <div class="unit-form-grid">
+                        <div>
+                            <label asp-for="EditUnit.IconKey">Icon Key</label>
+                            <select asp-for="EditUnit.IconKey" class="field-select">
+                                <option value="ship">ship</option>
+                                <option value="tugboat">tugboat</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label asp-for="EditUnit.UnitType">Unit Type</label>
+                            <input asp-for="EditUnit.UnitType" class="field-control" placeholder="Merchant Vessel" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label asp-for="EditUnit.GpsStatusUrl">GPS Status URL</label>
+                        <input asp-for="EditUnit.GpsStatusUrl" class="field-control" placeholder="http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action" />
+                    </div>
+
+                    <div>
+                        <label asp-for="EditUnit.CameraUrl">Camera URL</label>
+                        <textarea asp-for="EditUnit.CameraUrl" class="field-control" rows="3" placeholder="http://103.245.39.218:8080/808gps/open/player/video.html?..."></textarea>
+                    </div>
+
+                    <div>
+                        <label asp-for="EditUnit.UnitDetail">Unit Detail</label>
+                        <textarea asp-for="EditUnit.UnitDetail" class="field-control" rows="4" placeholder="Live GPS/AIS unit untuk monitoring operasional SeaWay."></textarea>
+                    </div>
+
+                    <div class="unit-toggle-row">
+                        <div class="form-check">
+                            <input asp-for="EditUnit.IsActive" class="form-check-input" />
+                            <label asp-for="EditUnit.IsActive" class="form-check-label">Active</label>
+                        </div>
+                        <div class="form-check">
+                            <input asp-for="EditUnit.IsDefault" class="form-check-input" />
+                            <label asp-for="EditUnit.IsDefault" class="form-check-label">Default</label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-button">
+                        <span class="submit-button-label">Save Unit</span>
+                        <span class="submit-button-spinner"></span>
+                    </button>
+                </div>
+            </form>
+        </aside>
+    </section>
+</div>
+
+<script>
+    (() => {
+        const search = document.getElementById("unitSearchBox");
+        const rows = Array.from(document.querySelectorAll("[data-unit-search]"));
+        const filterButtons = Array.from(document.querySelectorAll("[data-unit-filter]"));
+        let activeFilter = "all";
+
+        const renderRows = () => {
+            const query = (search?.value ?? "").trim().toLowerCase();
+            rows.forEach((row) => {
+                const haystack = row.getAttribute("data-unit-search") || "";
+                const state = row.getAttribute("data-unit-state") || "";
+                const matchesQuery = haystack.includes(query);
+                const matchesFilter = activeFilter === "all" || state === activeFilter;
+                row.style.display = matchesQuery && matchesFilter ? "" : "none";
+            });
+        };
+
+        search?.addEventListener("input", renderRows);
+        filterButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                activeFilter = button.getAttribute("data-unit-filter") || "all";
+                filterButtons.forEach((item) => item.classList.toggle("active", item === button));
+                renderRows();
+            });
+        });
+
+        rows.forEach((row) => {
+            row.addEventListener("click", (event) => {
+                const target = event.target;
+                if (target instanceof HTMLElement && target.closest("a, button, input, select, textarea")) {
+                    return;
+                }
+
+                const unitId = row.getAttribute("data-unit-id");
+                if (unitId) {
+                    window.location.href = `/Units?unitId=${unitId}`;
+                }
+            });
+        });
+    })();
+</script>

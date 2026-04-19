@@ -4,6 +4,14 @@ public class DashboardViewModel
 {
     public required IReadOnlyList<KpiCardViewModel> Kpis { get; init; }
 
+    public required UnitStatusSnapshotViewModel LiveUnit { get; init; }
+
+    public required double MapCenterLatitude { get; init; }
+
+    public required double MapCenterLongitude { get; init; }
+
+    public required int MapZoom { get; init; }
+
     public required IReadOnlyList<MapSignalViewModel> MapSignals { get; init; }
 
     public required IReadOnlyList<MarineAlertViewModel> Alerts { get; init; }
@@ -41,6 +49,80 @@ public class MapSignalViewModel
     public required double X { get; init; }
 
     public required double Y { get; init; }
+
+    public required double Latitude { get; init; }
+
+    public required double Longitude { get; init; }
+
+    public string? Heading { get; init; }
+}
+
+public class UnitStatusSnapshotViewModel
+{
+    public required string DeviceId { get; init; }
+
+    public required string UnitCode { get; init; }
+
+    public required string VehicleId { get; init; }
+
+    public required string Name { get; init; }
+
+    public required string UnitName { get; init; }
+
+    public required string UnitDetail { get; init; }
+
+    public required string Status { get; init; }
+
+    public required bool IsOnline { get; init; }
+
+    public required string Network { get; init; }
+
+    public required string Gateway { get; init; }
+
+    public required string SessionToken { get; init; }
+
+    public required string GpsStatusUrl { get; init; }
+
+    public required string SpeedLabel { get; init; }
+
+    public required string Heading { get; init; }
+
+    public required double Latitude { get; init; }
+
+    public required double Longitude { get; init; }
+
+    public required string PositionText { get; init; }
+
+    public required string LastSeen { get; init; }
+
+    public required string UnitKind { get; init; }
+
+    public required string Icon { get; init; }
+
+    public required string CameraUrl { get; init; }
+
+    public required string LocationStatus { get; init; }
+
+    public required string LocationNote { get; init; }
+
+    public required string RawLatitude { get; init; }
+
+    public required string RawLongitude { get; init; }
+
+    public required string DecimalLatitude { get; init; }
+
+    public required string DecimalLongitude { get; init; }
+
+    public required IReadOnlyList<UnitStatusTrailPointViewModel> Trail { get; init; }
+}
+
+public class UnitStatusTrailPointViewModel
+{
+    public required double Latitude { get; init; }
+
+    public required double Longitude { get; init; }
+
+    public required string Label { get; init; }
 }
 
 public class MarineAlertViewModel

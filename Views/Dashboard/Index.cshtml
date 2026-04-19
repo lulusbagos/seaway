@@ -1,3 +1,4 @@
+@using System.Text.Json
 @model SeaWay.Models.ViewModels.DashboardViewModel
 
 <div class="page-grid">
@@ -28,42 +29,53 @@
                 <div>
                     <div class="panel-eyebrow">Live Map</div>
                     <h2 class="panel-title">Makassar Strait Operational View</h2>
-                    <p class="panel-copy">Prototype visual untuk monitoring GPS/AIS kapal. Tahap berikutnya tinggal dihubungkan ke library peta dan feed realtime.</p>
+                    <p class="panel-copy">OpenSeaMap live layer untuk monitoring GPS/AIS kapal, seamark, dan kontrol koridor pelayaran.</p>
                 </div>
-                <div class="panel-action">Realtime mode</div>
+                <div class="panel-action">OpenSeaMap live</div>
             </div>
 
-            <div class="map-surface">
-                <div class="map-lane one"></div>
-                <div class="map-lane two"></div>
-                <div class="map-zone safe" style="top:14%; left:58%;">Pilot Zone</div>
-                <div class="map-zone warn" style="top:54%; left:19%;">Anchorage</div>
-                <div class="map-zone alert" style="top:71%; left:63%;">Restricted Corridor</div>
-
-                @foreach (var signal in Model.MapSignals)
-                {
-                    <div class="map-vessel @signal.Status" style="left:@(signal.X)%; top:@(signal.Y)%;">
-                        <div class="map-vessel-dot"></div>
-                        <div class="map-vessel-card">
-                            <div class="map-vessel-name">@signal.Name</div>
-                            <div class="map-vessel-meta">@signal.SpeedLabel</div>
-                        </div>
+            <div class="map-surface map-live-surface">
+                <div id="seaWayMap" class="map-canvas" aria-label="OpenSeaMap live map"></div>
+                <div class="map-overlay map-overlay-top">
+                    <div class="map-source-row">
+                        <span class="map-source-chip"><span class="brand-pulse"></span> OpenSeaMap Live</span>
+                        <a class="map-source-link" href="https://map.openseamap.org" target="_blank" rel="noreferrer">map.openseamap.org</a>
                     </div>
-                }
+                    <div class="map-source-copy">OSM base + seamark overlay</div>
+                    <div class="map-layer-toolbar" aria-label="Map options">
+                        <button class="map-layer-chip active" type="button" data-map-layer="bathymetry">Depth</button>
+                        <button class="map-layer-chip active" type="button" data-map-layer="harbours">Harbours</button>
+                        <button class="map-layer-chip" type="button" data-map-layer="weather">Weather</button>
+                        <button class="map-layer-chip active" type="button" data-map-layer="ais">AIS Trails</button>
+                    </div>
+                    <div class="map-layer-toolbar map-filter-toolbar" aria-label="Vessel filters">
+                        <button class="map-layer-chip active" type="button" data-ship-filter="all">All</button>
+                        <button class="map-layer-chip" type="button" data-ship-filter="online">Live</button>
+                        <button class="map-layer-chip" type="button" data-ship-filter="warning">Watch</button>
+                        <button class="map-layer-chip" type="button" data-ship-filter="alert">Alert</button>
+                    </div>
+                </div>
+                <div class="map-overlay map-overlay-bottom">
+                    <div class="map-legend">
+                        <span class="map-legend-item live"><span class="map-legend-dot"></span> Live vessel</span>
+                        <span class="map-legend-item muted">Makassar Strait</span>
+                        <span class="map-legend-item muted">AIS + GPS ready</span>
+                    </div>
+                </div>
             </div>
 
             <div class="map-footer">
                 <div class="mini-stat">
-                    <div class="mini-stat-label">Traffic Density</div>
-                    <div class="mini-stat-value">High on corridor alpha</div>
+                    <div class="mini-stat-label">Bathymetry</div>
+                    <div class="mini-stat-value">Depth bands active</div>
                 </div>
                 <div class="mini-stat">
                     <div class="mini-stat-label">Coverage</div>
-                    <div class="mini-stat-value">GPS + AIS hybrid feed</div>
+                    <div class="mini-stat-value">GPS + AIS + harbours</div>
                 </div>
                 <div class="mini-stat">
-                    <div class="mini-stat-label">Retention</div>
-                    <div class="mini-stat-value">Playback 30 hari</div>
+                    <div class="mini-stat-label">View Mode</div>
+                    <div class="mini-stat-value">Operational chart</div>
                 </div>
             </div>
         </article>
@@ -85,7 +97,7 @@
                                 <div class="alert-dot @alert.Severity"></div>
                                 <div>
                                     <div class="alert-title">@alert.Title</div>
-                                    <div class="alert-copy">@alert.VesselName · @alert.Description</div>
+                                    <div class="alert-copy">@alert.VesselName &middot; @alert.Description</div>
                                 </div>
                             </div>
                             <div class="badge-soft @(alert.Severity == "critical" ? "alert" : alert.Severity == "warning" ? "warn" : "live")">@alert.OccurredAt</div>
@@ -148,14 +160,15 @@
             <div class="fleet-table">
                 @foreach (var vessel in Model.ActiveVessels)
                 {
-                    <div class="fleet-row">
+                    var fleetStatus = vessel.Status == "Live" ? "online" : vessel.Status == "Watch" ? "warning" : "alert";
+                    <div class="fleet-row" data-fleet-status="@fleetStatus">
                         <div class="fleet-name-block">
                             <div class="fleet-avatar">
                                 <i class="bi bi-water"></i>
                             </div>
                             <div>
                                 <div class="fleet-name">@vessel.Name</div>
-                                <div class="fleet-meta">@vessel.Imo · @vessel.Destination</div>
+                                <div class="fleet-meta">@vessel.Imo &middot; @vessel.Destination</div>
                             </div>
                         </div>
 
@@ -208,4 +221,208 @@
             </div>
         </article>
     </section>
+
+    <div class="modal fade vessel-camera-modal" id="vesselCameraModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content vessel-camera-shell">
+                <div class="vessel-camera-glow"></div>
+                <div class="modal-header vessel-camera-header">
+                    <div>
+                        <div class="panel-eyebrow">Vessel Camera Suite</div>
+                        <h2 class="vessel-camera-title" id="vesselCameraTitle">Vessel Camera Suite</h2>
+                        <p class="vessel-camera-copy" id="vesselCameraMeta">Klik kapal pada peta untuk membuka kamera live unit terkait.</p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white vessel-camera-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body vessel-camera-body">
+                    <aside class="vessel-camera-summary">
+                        <div class="summary-portrait">
+                            <img id="vesselCameraPortrait" src="~/image/ship.png" alt="Vessel unit" />
+                            <div class="summary-portrait-overlay">
+                                <div class="summary-portrait-chip"><span class="status-dot"></span><span id="vesselCameraUnitKind">Merchant Vessel</span></div>
+                                <div class="summary-portrait-caption">Unit visual</div>
+                            </div>
+                        </div>
+                        <div class="summary-card accent">
+                            <div class="summary-label">Playback</div>
+                            <div class="playback-row">
+                                <input id="vesselPlaybackSlider" class="playback-slider" type="range" min="1" max="4" value="4" step="1" />
+                                <div class="playback-meta">
+                                    <span id="vesselPlaybackPoint">4 / 4</span>
+                                    <span id="vesselPlaybackTime">Latest</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Target</div>
+                            <div class="summary-value" id="vesselCameraName">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Unit code</div>
+                            <div class="summary-value" id="vesselCameraUnitCode">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Device ID</div>
+                            <div class="summary-value" id="vesselCameraDeviceId">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Unit detail</div>
+                            <div class="summary-note" id="vesselCameraUnitDetail">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Status</div>
+                            <div class="summary-value" id="vesselCameraStatus">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Speed</div>
+                            <div class="summary-value" id="vesselCameraSpeed">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Heading</div>
+                            <div class="summary-value" id="vesselCameraHeading">-</div>
+                        </div>
+                        <div class="summary-card accent">
+                            <div class="summary-label">Live context</div>
+                            <div class="summary-value">Bridge, deck, stern, dock, port, trail</div>
+                        </div>
+                        <div class="summary-card accent">
+                            <div class="summary-label">Location status</div>
+                            <div class="summary-value summary-source" id="vesselCameraLocationStatus">-</div>
+                            <div class="summary-note" id="vesselCameraLocationNote">-</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Coordinates</div>
+                            <div class="summary-note">
+                                Raw: <span id="vesselCameraRawCoordinates">-</span><br />
+                                Decimal: <span id="vesselCameraDecimalCoordinates">-</span>
+                            </div>
+                        </div>
+                    </aside>
+                    <div class="vessel-camera-stage">
+                        <div class="camera-stage-toolbar">
+                            <div>
+                                <div class="summary-label">4-channel console</div>
+                                <div class="camera-stage-title">Direct vessel camera feed</div>
+                            </div>
+                            <div class="camera-stage-chips">
+                                <span class="vessel-feed-chip live">CH 01</span>
+                                <span class="vessel-feed-chip">CH 02</span>
+                                <span class="vessel-feed-chip">CH 03</span>
+                                <span class="vessel-feed-chip">CH 04</span>
+                            </div>
+                        </div>
+                        <div class="vessel-camera-console">
+                            <iframe
+                                id="vesselCameraFrame"
+                                class="vessel-camera-frame"
+                                title="SeaWay vessel camera console"
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
+                                allow="autoplay; fullscreen; picture-in-picture"
+                                src="about:blank"></iframe>
+                            <div class="camera-console-overlay">
+                                <span class="camera-console-pill live">LIVE</span>
+                                <span class="camera-console-pill">API VIDEO</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+}
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script>
+        window.seawayMapData = @Html.Raw(JsonSerializer.Serialize(new
+        {
+            center = new { lat = Model.MapCenterLatitude, lng = Model.MapCenterLongitude, zoom = Model.MapZoom },
+            liveUnit = new
+            {
+                name = Model.LiveUnit.Name,
+                unitCode = Model.LiveUnit.UnitCode,
+                unitName = Model.LiveUnit.UnitName,
+                status = Model.LiveUnit.Status,
+                speedLabel = Model.LiveUnit.SpeedLabel,
+                heading = Model.LiveUnit.Heading,
+                latitude = Model.LiveUnit.Latitude,
+                longitude = Model.LiveUnit.Longitude,
+                positionText = Model.LiveUnit.PositionText,
+                lastSeen = Model.LiveUnit.LastSeen,
+                unitKind = Model.LiveUnit.UnitKind,
+                icon = Model.LiveUnit.Icon,
+                cameraUrl = Model.LiveUnit.CameraUrl,
+                sessionToken = Model.LiveUnit.SessionToken,
+                gpsStatusUrl = Model.LiveUnit.GpsStatusUrl,
+                unitDetail = Model.LiveUnit.UnitDetail,
+                locationStatus = Model.LiveUnit.LocationStatus,
+                locationNote = Model.LiveUnit.LocationNote,
+                rawLatitude = Model.LiveUnit.RawLatitude,
+                rawLongitude = Model.LiveUnit.RawLongitude,
+                decimalLatitude = Model.LiveUnit.DecimalLatitude,
+                decimalLongitude = Model.LiveUnit.DecimalLongitude,
+                trail = Model.LiveUnit.Trail.Select(point => new
+                {
+                    latitude = point.Latitude,
+                    longitude = point.Longitude,
+                    label = point.Label
+                })
+            },
+            signals = Model.MapSignals.Select(signal => new
+            {
+                name = signal.Name,
+                status = signal.Status,
+                speedLabel = signal.SpeedLabel,
+                heading = signal.Heading,
+                latitude = signal.Latitude,
+                longitude = signal.Longitude,
+                icon = signal.Name.Contains("Tug", StringComparison.OrdinalIgnoreCase) || signal.Name.Contains("KM", StringComparison.OrdinalIgnoreCase)
+                    ? "tugboat"
+                    : "ship",
+                trail = new[]
+                {
+                    new { lat = signal.Latitude - 0.14, lng = signal.Longitude - 0.18 },
+                    new { lat = signal.Latitude - 0.09, lng = signal.Longitude - 0.11 },
+                    new { lat = signal.Latitude - 0.04, lng = signal.Longitude - 0.05 },
+                    new { lat = signal.Latitude, lng = signal.Longitude }
+                }
+            }),
+            zones = new[]
+            {
+                new { name = "Makassar Pilot Zone", lat = -1.85, lng = 119.15, radius = 45000, tone = "live" },
+                new { name = "Coal Anchorage East", lat = -2.45, lng = 119.72, radius = 30000, tone = "warn" },
+                new { name = "Restricted Energy Corridor", lat = -1.25, lng = 119.48, radius = 22000, tone = "alert" }
+            },
+            depthBands = new[]
+            {
+                new { name = "Shelf 20-50m", lat = -1.85, lng = 118.95, radius = 220000, tone = "shallow", label = "20-50 m" },
+                new { name = "Slope 50-200m", lat = -2.15, lng = 119.15, radius = 150000, tone = "mid", label = "50-200 m" },
+                new { name = "Deep 200-1000m", lat = -2.45, lng = 119.4, radius = 98000, tone = "deep", label = "200-1000 m" }
+            },
+            harbours = new[]
+            {
+                new { name = "Makassar New Port", lat = -5.11, lng = 119.43, type = "Terminal" },
+                new { name = "Samarinda Anchorage", lat = -0.44, lng = 117.19, type = "Anchorage" },
+                new { name = "Balikpapan Port", lat = -1.27, lng = 116.83, type = "Port" }
+            },
+            weatherVectors = new[]
+            {
+                new { name = "NE Wind 18 kn", lat = -1.55, lng = 119.0, angle = 35 },
+                new { name = "Current 1.6 kn", lat = -2.05, lng = 119.32, angle = 102 },
+                new { name = "Wave front", lat = -1.6, lng = 119.55, angle = 8 }
+            },
+            liveUnitApi = "/api/unit-status"
+        }));
+
+        window.initializeSeaWayMap("seaWayMap", window.seawayMapData);
+    </script>
+}
+

@@ -13,6 +13,8 @@ public class SeaWayDbContext(DbContextOptions<SeaWayDbContext> options) : DbCont
 
     public DbSet<LoginAudit> LoginAudits => Set<LoginAudit>();
 
+    public DbSet<UnitMaster> UnitMasters => Set<UnitMaster>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<UserLogin>(entity =>
@@ -73,6 +75,29 @@ public class SeaWayDbContext(DbContextOptions<SeaWayDbContext> options) : DbCont
             entity.Property(x => x.UserAgent).HasColumnName("user_agent");
             entity.Property(x => x.LoginAt).HasColumnName("login_at").HasColumnType("timestamp without time zone");
             entity.Property(x => x.LoginStatus).HasColumnName("login_status");
+        });
+
+        modelBuilder.Entity<UnitMaster>(entity =>
+        {
+            entity.ToTable("tbl_m_unit");
+            entity.HasKey(x => x.UnitId);
+            entity.Property(x => x.UnitId).HasColumnName("unit_id");
+            entity.Property(x => x.UnitCode).HasColumnName("unit_code");
+            entity.Property(x => x.UnitName).HasColumnName("unit_name");
+            entity.Property(x => x.DeviceIdNo).HasColumnName("device_idno");
+            entity.Property(x => x.SessionToken).HasColumnName("session_token");
+            entity.Property(x => x.GpsStatusUrl).HasColumnName("gps_status_url");
+            entity.Property(x => x.CameraUrl).HasColumnName("camera_url");
+            entity.Property(x => x.UnitImageUrl).HasColumnName("unit_image_url");
+            entity.Property(x => x.IconKey).HasColumnName("icon_key");
+            entity.Property(x => x.UnitType).HasColumnName("unit_type");
+            entity.Property(x => x.UnitDetail).HasColumnName("unit_detail");
+            entity.Property(x => x.IsActive).HasColumnName("is_active");
+            entity.Property(x => x.IsDefault).HasColumnName("is_default");
+            entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(x => x.UnitCode).IsUnique();
+            entity.HasIndex(x => x.DeviceIdNo).IsUnique();
         });
     }
 }

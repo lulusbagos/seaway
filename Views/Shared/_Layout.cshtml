@@ -4,6 +4,7 @@
     var controllerName = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
     var userName = User.Identity?.Name ?? "Fleet Supervisor";
     var roleName = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Viewer";
+    var bootTransition = string.Equals(Context.Request.Query["boot"], "1", StringComparison.Ordinal);
 }
 <!DOCTYPE html>
 <html lang="id">
@@ -21,6 +22,17 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
+    <div class="page-transition-overlay @(bootTransition ? "is-visible" : string.Empty)" id="pageTransitionOverlay" aria-hidden="true">
+        <div class="page-transition-core">
+            <div class="page-transition-ring"></div>
+            <div class="page-transition-ring page-transition-ring-alt"></div>
+            <div class="page-transition-mark">
+                <span></span>
+            </div>
+        </div>
+        <div class="page-transition-copy">Booting SeaWay Control Room</div>
+    </div>
+
     <div class="layout-shell" id="layoutShell">
         <aside class="app-sidebar" id="appSidebar">
             <div class="sidebar-brand-panel">
@@ -52,6 +64,10 @@
                         <i class="bi bi-shield-lock"></i>
                         <span>Role Access</span>
                     </a>
+                    <a class="sidebar-link @(controllerName == "Units" ? "active" : null)" asp-controller="Units" asp-action="Index">
+                        <i class="bi bi-sliders"></i>
+                        <span>Unit Settings</span>
+                    </a>
                 </nav>
             </div>
 
@@ -66,6 +82,7 @@
                         <span class="sidebar-chip">tbl_m_user_login</span>
                         <span class="sidebar-chip">tbl_r_user_role</span>
                         <span class="sidebar-chip">tbl_t_login_audit</span>
+                        <span class="sidebar-chip">tbl_m_unit</span>
                     </div>
                 </div>
             </div>
