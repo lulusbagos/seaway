@@ -1410,13 +1410,64 @@ a {
 }
 
 .summary-note span {
-  color: rgba(239, 248, 251, 0.92);
-  font-weight: 700;
+    color: rgba(239, 248, 251, 0.92);
+    font-weight: 700;
+}
+
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.telemetry-pill {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 16px;
+    border: 1px solid rgba(140, 192, 205, 0.18);
+    background: rgba(255, 255, 255, 0.65);
+}
+
+.telemetry-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(239, 248, 251, 0.7);
+}
+
+.telemetry-value {
+    font-size: 0.88rem;
+    color: rgba(239, 248, 251, 0.95);
+    font-variant-numeric: tabular-nums;
+}
+
+.telemetry-positive {
+    border-color: rgba(46, 207, 134, 0.24);
+    background: rgba(46, 207, 134, 0.08);
+}
+
+.telemetry-warning {
+    border-color: rgba(255, 184, 77, 0.25);
+    background: rgba(255, 184, 77, 0.08);
+}
+
+.telemetry-neutral {
+    border-color: rgba(140, 192, 205, 0.18);
+}
+
+.telemetry-empty {
+    padding: 0.6rem 0.75rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.65);
+    color: rgba(239, 248, 251, 0.72);
+    font-size: 0.82rem;
 }
 
 .playback-row {
-  display: grid;
-  gap: 0.55rem;
+    display: grid;
+    gap: 0.55rem;
   margin-top: 0.5rem;
 }
 

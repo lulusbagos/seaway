@@ -113,6 +113,8 @@ public class UnitStatusSnapshotViewModel
 
     public required string DecimalLongitude { get; init; }
 
+    public required IReadOnlyList<UnitTelemetryFieldViewModel> Telemetry { get; init; }
+
     public required IReadOnlyList<UnitStatusTrailPointViewModel> Trail { get; init; }
 }
 
@@ -123,6 +125,15 @@ public class UnitStatusTrailPointViewModel
     public required double Longitude { get; init; }
 
     public required string Label { get; init; }
+}
+
+public class UnitTelemetryFieldViewModel
+{
+    public required string Label { get; init; }
+
+    public required string Value { get; init; }
+
+    public required string Tone { get; init; }
 }
 
 public class MarineAlertViewModel

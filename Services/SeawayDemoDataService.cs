@@ -35,6 +35,26 @@ public class SeawayDemoDataService
             RawLongitude = "117658300",
             DecimalLatitude = "1.027590",
             DecimalLongitude = "117.658300",
+            Telemetry =
+            [
+                new() { Label = "net", Value = "3", Tone = "positive" },
+                new() { Label = "gw", Value = "G1", Tone = "positive" },
+                new() { Label = "ol", Value = "1", Tone = "positive" },
+                new() { Label = "sp", Value = "70", Tone = "positive" },
+                new() { Label = "hx", Value = "348", Tone = "positive" },
+                new() { Label = "pk", Value = "0", Tone = "warning" },
+                new() { Label = "lc", Value = "35666300", Tone = "neutral" },
+                new() { Label = "gd", Value = "169", Tone = "neutral" },
+                new() { Label = "s1", Value = "-2147481213", Tone = "neutral" },
+                new() { Label = "s2", Value = "528385", Tone = "neutral" },
+                new() { Label = "s3", Value = "202375168", Tone = "neutral" },
+                new() { Label = "s4", Value = "8", Tone = "neutral" },
+                new() { Label = "bsd1", Value = "758", Tone = "neutral" },
+                new() { Label = "t1", Value = "0", Tone = "neutral" },
+                new() { Label = "t2", Value = "0", Tone = "neutral" },
+                new() { Label = "t3", Value = "0", Tone = "neutral" },
+                new() { Label = "t4", Value = "0", Tone = "neutral" }
+            ],
             Trail = []
         };
 

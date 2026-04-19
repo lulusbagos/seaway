@@ -297,6 +297,10 @@
                                 Decimal: <span id="vesselCameraDecimalCoordinates">-</span>
                             </div>
                         </div>
+                        <div class="summary-card accent">
+                            <div class="summary-label">Raw telemetry</div>
+                            <div class="telemetry-grid" id="vesselCameraTelemetry"></div>
+                        </div>
                     </aside>
                     <div class="vessel-camera-stage">
                         <div class="camera-stage-toolbar">
@@ -369,6 +373,12 @@
                 rawLongitude = Model.LiveUnit.RawLongitude,
                 decimalLatitude = Model.LiveUnit.DecimalLatitude,
                 decimalLongitude = Model.LiveUnit.DecimalLongitude,
+                telemetry = Model.LiveUnit.Telemetry.Select(item => new
+                {
+                    label = item.Label,
+                    value = item.Value,
+                    tone = item.Tone
+                }),
                 trail = Model.LiveUnit.Trail.Select(point => new
                 {
                     latitude = point.Latitude,

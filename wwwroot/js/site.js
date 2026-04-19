@@ -144,6 +144,7 @@
             locationNote: document.getElementById("vesselCameraLocationNote"),
             rawCoordinates: document.getElementById("vesselCameraRawCoordinates"),
             decimalCoordinates: document.getElementById("vesselCameraDecimalCoordinates"),
+            telemetry: document.getElementById("vesselCameraTelemetry"),
             unitCode: document.getElementById("vesselCameraUnitCode"),
             deviceId: document.getElementById("vesselCameraDeviceId"),
             unitDetail: document.getElementById("vesselCameraUnitDetail"),
@@ -214,6 +215,25 @@
             }
         };
 
+        const renderTelemetry = (signal) => {
+            if (!vesselCameraFields.telemetry) {
+                return;
+            }
+
+            const telemetry = Array.isArray(signal?.telemetry) ? signal.telemetry : [];
+            vesselCameraFields.telemetry.innerHTML = telemetry.length > 0
+                ? telemetry.map((item) => {
+                    const tone = (item.tone || "neutral").toLowerCase();
+                    return `
+                        <div class="telemetry-pill telemetry-${tone}">
+                            <span class="telemetry-label">${escapeHtml(item.label || "-")}</span>
+                            <strong class="telemetry-value">${escapeHtml(item.value || "-")}</strong>
+                        </div>
+                    `;
+                }).join("")
+                : '<div class="telemetry-empty">No telemetry</div>';
+        };
+
         const openVesselCameraModal = (signal) => {
             if (!signal) {
                 return;
@@ -282,6 +302,7 @@
             if (vesselCameraFields.heading) {
                 vesselCameraFields.heading.textContent = signal.heading || "-";
             }
+            renderTelemetry(signal);
             if (vesselCameraFields.playbackSlider) {
                 const trailLength = Array.isArray(signal.trail) ? Math.max(signal.trail.length, 1) : 1;
                 vesselCameraFields.playbackSlider.min = "1";
@@ -356,6 +377,7 @@
                 rawLongitude: unit.rawLongitude || "",
                 decimalLatitude: unit.decimalLatitude || "",
                 decimalLongitude: unit.decimalLongitude || "",
+                telemetry: unit.telemetry || [],
                 trail: unit.trail || []
             };
 
@@ -377,6 +399,7 @@
                 rawLongitude: unit.rawLongitude || "",
                 decimalLatitude: unit.decimalLatitude || "",
                 decimalLongitude: unit.decimalLongitude || "",
+                telemetry: unit.telemetry || [],
                 trail: unit.trail || []
             }));
             marker.addTo(liveUnitLayer);
@@ -608,6 +631,7 @@
                 rawLongitude: liveUnitSeed.rawLongitude || "",
                 decimalLatitude: liveUnitSeed.decimalLatitude || "",
                 decimalLongitude: liveUnitSeed.decimalLongitude || "",
+                telemetry: liveUnitSeed.telemetry || [],
                 trail: Array.isArray(liveUnitSeed.trail) ? liveUnitSeed.trail : []
             });
         }

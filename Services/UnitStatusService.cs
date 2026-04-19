@@ -88,6 +88,18 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
         var online = GetInt(item, "ol", 0) == 1;
         var net = GetInt(item, "net", 0);
         var gateway = GetString(item, "gw", "-");
+        var pk = GetRawField(item, "pk");
+        var lc = GetRawField(item, "lc");
+        var gd = GetRawField(item, "gd");
+        var s1 = GetRawField(item, "s1");
+        var s2 = GetRawField(item, "s2");
+        var s3 = GetRawField(item, "s3");
+        var s4 = GetRawField(item, "s4");
+        var bsd1 = GetRawField(item, "bsd1");
+        var t1 = GetRawField(item, "t1");
+        var t2 = GetRawField(item, "t2");
+        var t3 = GetRawField(item, "t3");
+        var t4 = GetRawField(item, "t4");
         var gt = GetString(item, "gt", DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
         var gpsTime = DateTime.TryParse(gt, out var parsedGt)
             ? DateTime.SpecifyKind(parsedGt, DateTimeKind.Unspecified)
@@ -146,6 +158,26 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
             RawLongitude = rawLongitude,
             DecimalLatitude = latitude.ToString("0.######"),
             DecimalLongitude = longitude.ToString("0.######"),
+            Telemetry =
+            [
+                new() { Label = "net", Value = net.ToString(), Tone = "positive" },
+                new() { Label = "gw", Value = gateway, Tone = "positive" },
+                new() { Label = "ol", Value = online ? "1" : "0", Tone = online ? "positive" : "warning" },
+                new() { Label = "sp", Value = speedRaw.ToString(), Tone = "positive" },
+                new() { Label = "hx", Value = headingRaw.ToString(), Tone = "positive" },
+                new() { Label = "pk", Value = pk, Tone = "warning" },
+                new() { Label = "lc", Value = lc, Tone = "neutral" },
+                new() { Label = "gd", Value = gd, Tone = "neutral" },
+                new() { Label = "s1", Value = s1, Tone = "neutral" },
+                new() { Label = "s2", Value = s2, Tone = "neutral" },
+                new() { Label = "s3", Value = s3, Tone = "neutral" },
+                new() { Label = "s4", Value = s4, Tone = "neutral" },
+                new() { Label = "bsd1", Value = bsd1, Tone = "neutral" },
+                new() { Label = "t1", Value = t1, Tone = "neutral" },
+                new() { Label = "t2", Value = t2, Tone = "neutral" },
+                new() { Label = "t3", Value = t3, Tone = "neutral" },
+                new() { Label = "t4", Value = t4, Tone = "neutral" }
+            ],
             Trail = _trail.ToList()
         };
     }
@@ -186,6 +218,26 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
             RawLongitude = "117658300",
             DecimalLatitude = "1.027590",
             DecimalLongitude = "117.658300",
+            Telemetry =
+            [
+                new() { Label = "net", Value = "3", Tone = "positive" },
+                new() { Label = "gw", Value = "G1", Tone = "positive" },
+                new() { Label = "ol", Value = "1", Tone = "positive" },
+                new() { Label = "sp", Value = "70", Tone = "positive" },
+                new() { Label = "hx", Value = "348", Tone = "positive" },
+                new() { Label = "pk", Value = "0", Tone = "warning" },
+                new() { Label = "lc", Value = "35666300", Tone = "neutral" },
+                new() { Label = "gd", Value = "169", Tone = "neutral" },
+                new() { Label = "s1", Value = "-2147481213", Tone = "neutral" },
+                new() { Label = "s2", Value = "528385", Tone = "neutral" },
+                new() { Label = "s3", Value = "202375168", Tone = "neutral" },
+                new() { Label = "s4", Value = "8", Tone = "neutral" },
+                new() { Label = "bsd1", Value = "758", Tone = "neutral" },
+                new() { Label = "t1", Value = "0", Tone = "neutral" },
+                new() { Label = "t2", Value = "0", Tone = "neutral" },
+                new() { Label = "t3", Value = "0", Tone = "neutral" },
+                new() { Label = "t4", Value = "0", Tone = "neutral" }
+            ],
             Trail = []
         };
     }
@@ -284,6 +336,16 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
         }
 
         return property.ToString() ?? fallback;
+    }
+
+    private static string GetRawField(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return "-";
+        }
+
+        return property.ToString() ?? "-";
     }
 
     private static bool IsWithinKaliorangArea(double latitude, double longitude)
