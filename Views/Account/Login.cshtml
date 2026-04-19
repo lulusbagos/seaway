@@ -1,0 +1,110 @@
+@model SeaWay.Models.ViewModels.LoginViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login - SeaWay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/SeaWay.styles.css" asp-append-version="true" />
+</head>
+<body class="auth-page">
+    <div class="auth-shell">
+        <section class="auth-hero">
+            <div class="auth-scanline" aria-hidden="true"></div>
+            <div class="auth-orb auth-orb-a"></div>
+            <div class="auth-orb auth-orb-b"></div>
+            <div class="auth-orb auth-orb-c"></div>
+
+            <div class="auth-hero-brand">
+                <div class="auth-hero-brand-mark">
+                    <span class="brand-pulse"></span>
+                </div>
+                <div class="auth-hero-brand-copy">
+                    <span class="auth-hero-kicker auth-hero-kicker-alt">Tha se vro</span>
+                    <h1 class="auth-title">
+                        <span>SEA</span>
+                        <span>WAY</span>
+                    </h1>
+                </div>
+            </div>
+        </section>
+
+        <section class="auth-panel">
+            <div class="auth-card">
+                <div class="auth-card-header">
+                    <div class="panel-eyebrow">Secure Access</div>
+                    <h2>Masuk ke SeaWay</h2>
+                    <p>Gunakan salah satu user dummy di bawah atau masukkan manual.</p>
+                </div>
+
+                <div class="auth-card-glow" aria-hidden="true"></div>
+
+                <form asp-action="Login" method="post" class="form-stack">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger auth-summary"></div>
+
+                    <div>
+                        <label asp-for="UserName"></label>
+                        <input asp-for="UserName" class="field-control" placeholder="operator" />
+                        <span asp-validation-for="UserName" class="text-danger"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="Password"></label>
+                        <input asp-for="Password" class="field-control" placeholder="operator123" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="Role"></label>
+                        <select asp-for="Role" class="field-select">
+                            <option>Fleet Operator</option>
+                            <option>Port Captain</option>
+                            <option>Fleet Admin</option>
+                            <option>Viewer</option>
+                        </select>
+                    </div>
+
+                    <div class="form-check">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label">Ingat perangkat ini</label>
+                    </div>
+
+                    <button type="submit" class="submit-button">Masuk ke Dashboard</button>
+                </form>
+
+                <div class="note-card">
+                    User dummy tersimpan plaintext sesuai instruksi. Saya tidak menerapkan enkripsi password pada prototype ini.
+                </div>
+
+                <div class="demo-account-grid">
+                    @foreach (var account in Model.DemoAccounts)
+                    {
+                        <div class="demo-account">
+                            <strong>@account.UserName / @account.Password</strong>
+                            <span>@account.Role · @account.Description</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="auth-copyright">
+                    Developed and Maintained by System Integration Department PT Indexim Coalindo
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+@model SeaWay.Models.ViewModels.FleetViewModel
+
+<div class="page-grid">
+    <section class="hero-strip">
+        <article class="fleet-hero">
+            <div class="panel-eyebrow">Fleet Workspace</div>
+            <h2 class="panel-title">@Model.HeroTitle</h2>
+            <p class="panel-copy">@Model.HeroDescription</p>
+
+            <div class="hero-kpi-row">
+                @foreach (var metric in Model.HeroMetrics)
+                {
+                    <div class="hero-kpi">
+                        <div class="hero-kpi-label">@metric.Label</div>
+                        <div class="hero-kpi-value">@metric.Value</div>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="card-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-eyebrow">Playback</div>
+                    <h2 class="panel-title">Recent route events</h2>
+                </div>
+            </div>
+
+            <div class="timeline">
+                @foreach (var item in Model.PlaybackEvents)
+                {
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-time">@item.Time</div>
+                        <div class="timeline-title">@item.Title</div>
+                        <div class="stack-item-copy">@item.Description</div>
+                    </div>
+                }
+            </div>
+        </article>
+    </section>
+
+    <section class="split-grid">
+        <article class="card-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-eyebrow">Vessel Board</div>
+                    <h2 class="panel-title">Daftar armada</h2>
+                    <p class="panel-copy">Siap dikembangkan menjadi grid filterable dengan source dari PostgreSQL dan websocket update.</p>
+                </div>
+                <div class="panel-action">31 vessels</div>
+            </div>
+
+            <div class="fleet-table">
+                @foreach (var vessel in Model.Vessels)
+                {
+                    var tone = vessel.Status == "Alert" ? "alert" : vessel.Status == "Watch" ? "warn" : "live";
+                    <div class="fleet-row">
+                        <div class="fleet-name-block">
+                            <div class="fleet-avatar">
+                                <i class="bi bi-geo-alt"></i>
+                            </div>
+                            <div>
+                                <div class="fleet-name">@vessel.Name</div>
+                                <div class="fleet-meta">@vessel.Type · @vessel.Cargo</div>
+                            </div>
+                        </div>
+
+                        <div class="fleet-columns">
+                            <div>
+                                <div class="fleet-col-label">Status</div>
+                                <div class="badge-soft @tone mt-2">@vessel.Status</div>
+                            </div>
+                            <div>
+                                <div class="fleet-col-label">Speed</div>
+                                <div class="fleet-col-value">@vessel.Speed</div>
+                            </div>
+                            <div>
+                                <div class="fleet-col-label">ETA</div>
+                                <div class="fleet-col-value">@vessel.Eta</div>
+                            </div>
+                            <div>
+                                <div class="fleet-col-label">Last ping</div>
+                                <div class="fleet-col-value">@vessel.LastPing</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </article>
+
+        <article class="card-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="panel-eyebrow">Zone Overview</div>
+                    <h2 class="panel-title">Geofence status</h2>
+                    <p class="panel-copy">Blok ini cocok untuk legend peta, threshold alert, dan analytics breach per area.</p>
+                </div>
+            </div>
+            <div class="page-grid">
+                @foreach (var zone in Model.Zones)
+                {
+                    var tone = zone.State == "Alert" ? "alert" : zone.State == "Watch" ? "warn" : "live";
+                    <div class="geofence-item">
+                        <div>
+                            <div class="stack-item-title">@zone.Name</div>
+                            <div class="stack-item-copy">@zone.Description</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge-soft @tone">@zone.State</div>
+                            <div class="fleet-meta mt-2">@zone.VesselCount</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </article>
+    </section>
+</div>

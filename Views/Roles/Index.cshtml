@@ -1,0 +1,56 @@
+@model SeaWay.Models.ViewModels.RolesViewModel
+
+<div class="page-grid">
+    <section class="role-grid">
+        @foreach (var role in Model.Roles)
+        {
+            <article class="role-card">
+                <div class="role-accent" style="background:@role.AccentColor;"></div>
+                <div class="w-100">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <div class="role-name">@role.Name</div>
+                            <div class="role-meta">@role.Scope</div>
+                        </div>
+                        <div class="badge-soft live">@role.MemberCount</div>
+                    </div>
+                    <div class="stack-item-copy">@role.Description</div>
+                </div>
+            </article>
+        }
+    </section>
+
+    <section class="card-panel">
+        <div class="panel-header">
+            <div>
+                <div class="panel-eyebrow">Permission Matrix</div>
+                <h2 class="panel-title">Draft role login dan hak akses</h2>
+                <p class="panel-copy">Setiap role sudah bisa dijadikan referensi untuk implementasi controller authorization berikutnya.</p>
+            </div>
+            <div class="panel-action">RBAC ready</div>
+        </div>
+
+        <div class="permission-list">
+            @foreach (var permission in Model.Permissions)
+            {
+                <div class="permission-item">
+                    <div>
+                        <div class="permission-title">@permission.Title</div>
+                        <div class="permission-copy">@permission.Description</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap justify-content-end">
+                        <div class="permission-state @(permission.CaptainState)">
+                            Captain: @permission.CaptainState
+                        </div>
+                        <div class="permission-state @(permission.OperatorState)">
+                            Operator: @permission.OperatorState
+                        </div>
+                        <div class="permission-state @(permission.AdminState)">
+                            Admin: @permission.AdminState
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</div>

@@ -1,0 +1,137 @@
+@{
+    var pageTitle = ViewData["Title"] as string ?? "Dashboard";
+    var pageSubtitle = ViewData["Subtitle"] as string ?? "Monitoring operasional armada secara realtime.";
+    var controllerName = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var userName = User.Identity?.Name ?? "Fleet Supervisor";
+    var roleName = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Viewer";
+}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@pageTitle - SeaWay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/SeaWay.styles.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <div class="layout-shell" id="layoutShell">
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-brand-panel">
+                <div>
+                    <div class="brand-badge">
+                        <span class="brand-pulse"></span>
+                        SeaWay
+                    </div>
+                    <div class="brand-title">Fleet Command</div>
+                    <div class="brand-subtitle">GPS kapal, geofence, alert, dan playback histori dalam satu workspace.</div>
+                </div>
+                <button class="sidebar-toggle d-lg-none" type="button" data-sidebar-close>
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Navigasi</div>
+                <nav class="sidebar-nav">
+                    <a class="sidebar-link @(controllerName == "Dashboard" ? "active" : null)" asp-controller="Dashboard" asp-action="Index">
+                        <i class="bi bi-broadcast-pin"></i>
+                        <span>Command Center</span>
+                    </a>
+                    <a class="sidebar-link @(controllerName == "Fleet" ? "active" : null)" asp-controller="Fleet" asp-action="Index">
+                        <i class="bi bi-life-preserver"></i>
+                        <span>Fleet Board</span>
+                    </a>
+                    <a class="sidebar-link @(controllerName == "Roles" ? "active" : null)" asp-controller="Roles" asp-action="Index">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>Role Access</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="sidebar-section mt-auto">
+                <div class="sidebar-card">
+                    <div class="sidebar-card-label">Database</div>
+                    <div class="sidebar-card-title">PostgreSQL Ready</div>
+                    <p class="sidebar-card-copy">
+                        Login sudah tersambung ke `DB_SEA_WAY` dengan pola tabel `tbl_m_`, `tbl_r_`, dan `tbl_t_`.
+                    </p>
+                    <div class="sidebar-chip-row">
+                        <span class="sidebar-chip">tbl_m_user_login</span>
+                        <span class="sidebar-chip">tbl_r_user_role</span>
+                        <span class="sidebar-chip">tbl_t_login_audit</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sidebar-backdrop" data-sidebar-close></div>
+
+        <div class="app-main">
+            <header class="app-topbar">
+                <div class="topbar-heading">
+                    <button class="mobile-menu-button d-lg-none" type="button" data-sidebar-open>
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div>
+                        <div class="topbar-label">SeaWay Monitoring Suite</div>
+                        <h1 class="topbar-title">@pageTitle</h1>
+                        <p class="topbar-copy">@pageSubtitle</p>
+                    </div>
+                </div>
+
+                <div class="topbar-actions">
+                    <div class="topbar-search">
+                        <i class="bi bi-search"></i>
+                        <input type="text" value="Cari kapal, IMO, geofence..." readonly />
+                    </div>
+                    <div class="status-pill live">
+                        <span class="status-dot"></span>
+                        24 kapal online
+                    </div>
+                    <div class="status-pill muted">
+                        Role: @roleName
+                    </div>
+                    <div class="operator-chip">
+                        <span class="operator-avatar">@userName[..1].ToUpperInvariant()</span>
+                        @userName
+                    </div>
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="status-pill muted border-0">
+                            <i class="bi bi-box-arrow-right"></i>
+                            Logout
+                        </button>
+                    </form>
+                </div>
+            </header>
+
+            <main class="app-content">
+                @if (TempData["LoginPreview"] is string loginPreview)
+                {
+                    <div class="card-panel mb-4">
+                        <div class="badge-soft live">@loginPreview</div>
+                    </div>
+                }
+                @RenderBody()
+            </main>
+
+            <footer class="app-footer">
+                <span>SeaWay UI prototype untuk monitoring GPS kapal.</span>
+                <span>Visual language mengacu ke `one_db_mitra` lalu diarahkan ke domain maritim.</span>
+            </footer>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
