@@ -702,8 +702,6 @@
         };
 
         L.control.layers(null, {
-            "Bathymetry": depthLayer,
-            "Harbours": harbourLayer,
             "AIS Trails": aisTrailLayer,
             "Weather": weatherLayer
         }, { collapsed: false, position: "topright" }).addTo(map);
