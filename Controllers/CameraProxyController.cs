@@ -20,6 +20,16 @@ public class CameraProxyController(IHttpClientFactory httpClientFactory) : Contr
         "upgrade"
     ];
 
+    private static readonly HashSet<string> BlockedResponseHeaders =
+    [
+        "x-frame-options",
+        "content-security-policy",
+        "content-security-policy-report-only",
+        "cross-origin-embedder-policy",
+        "cross-origin-opener-policy",
+        "cross-origin-resource-policy"
+    ];
+
     [HttpGet]
     [HttpPost]
     [HttpPut]
@@ -119,7 +129,8 @@ public class CameraProxyController(IHttpClientFactory httpClientFactory) : Contr
     {
         foreach (var header in responseMessage.Headers)
         {
-            if (HopByHopHeaders.Contains(header.Key.ToLowerInvariant()))
+            var headerName = header.Key.ToLowerInvariant();
+            if (HopByHopHeaders.Contains(headerName) || BlockedResponseHeaders.Contains(headerName))
             {
                 continue;
             }
@@ -129,7 +140,8 @@ public class CameraProxyController(IHttpClientFactory httpClientFactory) : Contr
 
         foreach (var header in responseMessage.Content.Headers)
         {
-            if (HopByHopHeaders.Contains(header.Key.ToLowerInvariant()))
+            var headerName = header.Key.ToLowerInvariant();
+            if (HopByHopHeaders.Contains(headerName) || BlockedResponseHeaders.Contains(headerName))
             {
                 continue;
             }
