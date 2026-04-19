@@ -20,7 +20,7 @@ public class SeawayDemoDataService
             Gateway = "G1",
             SessionToken = "7725f0b6e9404a5d86bb6ccab539db9e",
             GpsStatusUrl = "http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action",
-            SpeedLabel = "28.0 kn",
+            SpeedLabel = "28.0 Knot",
             Heading = "358 deg",
             Latitude = 1.009485,
             Longitude = 117.657333,
@@ -70,7 +70,7 @@ public class SeawayDemoDataService
             ],
             Weather =
             [
-                new() { Label = "Angin", Value = "18 kn NE" },
+                new() { Label = "Angin", Value = "18 Knot NE" },
                 new() { Label = "Gelombang", Value = "1.9 m" },
                 new() { Label = "Visibilitas", Value = "9.6 nm" },
                 new() { Label = "Pasang", Value = "Menuju tinggi" }
@@ -99,10 +99,10 @@ public class SeawayDemoDataService
             ],
             Vessels =
             [
-                new() { Name = "MV Ocean Crown", Type = "Bulk Carrier", Status = "Live", Cargo = "Coal 68k MT", Speed = "16.2 kn", Eta = "18 Apr 14:20", LastPing = "20 detik lalu" },
-                new() { Name = "MT Nusantara Star", Type = "Tanker", Status = "Watch", Cargo = "Fuel Transfer", Speed = "12.5 kn", Eta = "18 Apr 16:05", LastPing = "3 menit lalu" },
-                new() { Name = "KM Seaway Ranger", Type = "Support Vessel", Status = "Live", Cargo = "Crew & Supply", Speed = "15.9 kn", Eta = "18 Apr 11:40", LastPing = "44 detik lalu" },
-                new() { Name = "MV Aruna Tide", Type = "Cargo Vessel", Status = "Alert", Cargo = "Container Mixed", Speed = "0.8 kn", Eta = "On hold", LastPing = "1 menit lalu" }
+                new() { Name = "MV Ocean Crown", Type = "Bulk Carrier", Status = "Live", Cargo = "Coal 68k MT", Speed = "16.2 Knot", Eta = "18 Apr 14:20", LastPing = "20 detik lalu" },
+                new() { Name = "MT Nusantara Star", Type = "Tanker", Status = "Watch", Cargo = "Fuel Transfer", Speed = "12.5 Knot", Eta = "18 Apr 16:05", LastPing = "3 menit lalu" },
+                new() { Name = "KM Seaway Ranger", Type = "Support Vessel", Status = "Live", Cargo = "Crew & Supply", Speed = "15.9 Knot", Eta = "18 Apr 11:40", LastPing = "44 detik lalu" },
+                new() { Name = "MV Aruna Tide", Type = "Cargo Vessel", Status = "Alert", Cargo = "Container Mixed", Speed = "0.8 Knot", Eta = "On hold", LastPing = "1 menit lalu" }
             ],
             PlaybackEvents =
             [
