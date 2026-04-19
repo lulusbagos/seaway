@@ -467,7 +467,9 @@
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")
                 .replaceAll("\"", "&quot;")
-                .replaceAll("'", "&#39;");`r`n        const buildIcon = (signal) => {
+                .replaceAll("'", "&#39;");
+
+        const buildIcon = (signal) => {
             const status = (signal.status || "online").toLowerCase();
             const toneClass = status === "alert" ? "alert" : status === "warning" ? "warning" : "online";
             const imageName = signal.icon === "tugboat" ? "tugboat.png" : "ship.png";
