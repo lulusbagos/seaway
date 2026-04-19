@@ -86,9 +86,6 @@
         const center = mapData.center ?? {};
         const signals = Array.isArray(mapData.signals) ? mapData.signals : [];
         const zones = Array.isArray(mapData.zones) ? mapData.zones : [];
-        const depthBands = Array.isArray(mapData.depthBands) ? mapData.depthBands : [];
-        const harbours = Array.isArray(mapData.harbours) ? mapData.harbours : [];
-        const weatherVectors = Array.isArray(mapData.weatherVectors) ? mapData.weatherVectors : [];
         const liveUnitSeed = mapData.liveUnit ?? null;
         const liveUnitApi = mapData.liveUnitApi || "/api/unit-status";
         const assetBase = "/image";
@@ -117,9 +114,6 @@
             attribution: "Sea map overlay &copy; OpenSeaMap contributors"
         }).addTo(map);
 
-        const depthLayer = L.layerGroup();
-        const harbourLayer = L.layerGroup();
-        const weatherLayer = L.layerGroup();
         const aisTrailLayer = L.layerGroup();
         const vesselLayer = typeof L.markerClusterGroup === "function"
             ? L.markerClusterGroup({
@@ -473,96 +467,7 @@
                 .replaceAll("<", "&lt;")
                 .replaceAll(">", "&gt;")
                 .replaceAll("\"", "&quot;")
-                .replaceAll("'", "&#39;");
-
-        depthBands.forEach((band) => {
-            if (typeof band.lat !== "number" || typeof band.lng !== "number" || typeof band.radius !== "number") {
-                return;
-            }
-
-            const tone = (band.tone || "deep").toLowerCase();
-            const style = tone === "shallow"
-                ? { fill: "#6fd3ff", border: "#a7e7ff", alpha: 0.17, dash: "2 8" }
-                : tone === "mid"
-                    ? { fill: "#2b8fc7", border: "#7cc8f2", alpha: 0.15, dash: "4 8" }
-                    : { fill: "#0b4f8a", border: "#5fa8ea", alpha: 0.14, dash: "6 8" };
-
-            const circle = L.circle([band.lat, band.lng], {
-                radius: band.radius,
-                color: style.border,
-                weight: 1.6,
-                opacity: 0.6,
-                fillColor: style.fill,
-                fillOpacity: style.alpha,
-                dashArray: style.dash
-            }).bindTooltip(`${band.name} • ${band.label || ""}`, {
-                permanent: false,
-                direction: "center",
-                opacity: 0.9
-            });
-
-            circle.addTo(depthLayer);
-        });
-
-        harbours.forEach((harbour) => {
-            if (typeof harbour.lat !== "number" || typeof harbour.lng !== "number") {
-                return;
-            }
-
-            const icon = L.divIcon({
-                className: "seaway-harbour-icon-wrap",
-                html: `
-                    <div class="seaway-harbour-icon">
-                        <i class="bi bi-geo-alt-fill"></i>
-                    </div>
-                `,
-                iconSize: [34, 34],
-                iconAnchor: [17, 31]
-            });
-
-            L.marker([harbour.lat, harbour.lng], { icon })
-                .bindPopup(`
-                    <div class="map-popup">
-                        <div class="map-popup-title">${escapeHtml(harbour.name || "Harbour")}</div>
-                        <div class="map-popup-row">Type: <strong>${escapeHtml(harbour.type || "-")}</strong></div>
-                    </div>
-                `, { closeButton: false, offset: [0, -8] })
-                .addTo(harbourLayer);
-        });
-
-        weatherVectors.forEach((item) => {
-            if (typeof item.lat !== "number" || typeof item.lng !== "number") {
-                return;
-            }
-
-            const base = L.latLng(item.lat, item.lng);
-            const end = L.latLng(
-                item.lat + 0.18 * Math.cos(((Number(item.angle) || 0) - 90) * Math.PI / 180),
-                item.lng + 0.18 * Math.sin(((Number(item.angle) || 0) - 90) * Math.PI / 180)
-            );
-
-            L.polyline([base, end], {
-                color: "#ffb84d",
-                weight: 2.2,
-                opacity: 0.72,
-                dashArray: "6 7"
-            }).addTo(weatherLayer);
-
-            L.marker(base, {
-                icon: L.divIcon({
-                    className: "seaway-weather-icon-wrap",
-                    html: `<div class="seaway-weather-icon"><i class="bi bi-wind"></i></div>`,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 16]
-                })
-            }).bindPopup(`
-                <div class="map-popup">
-                    <div class="map-popup-title">${escapeHtml(item.name || "Weather")}</div>
-                </div>
-            `, { closeButton: false }).addTo(weatherLayer);
-        });
-
-        const buildIcon = (signal) => {
+                .replaceAll("'", "&#39;");`r`n        const buildIcon = (signal) => {
             const status = (signal.status || "online").toLowerCase();
             const toneClass = status === "alert" ? "alert" : status === "warning" ? "warning" : "online";
             const imageName = signal.icon === "tugboat" ? "tugboat.png" : "ship.png";
@@ -689,21 +594,15 @@
             map.fitBounds(group.getBounds().pad(0.25));
         }
 
-        depthLayer.addTo(map);
-        harbourLayer.addTo(map);
         aisTrailLayer.addTo(map);
         vesselLayer.addTo(map);
 
         const overlays = {
-            bathymetry: depthLayer,
-            harbours: harbourLayer,
-            ais: aisTrailLayer,
-            weather: weatherLayer
+            ais: aisTrailLayer
         };
 
         L.control.layers(null, {
-            "AIS Trails": aisTrailLayer,
-            "Weather": weatherLayer
+            "AIS Trails": aisTrailLayer
         }, { collapsed: false, position: "topright" }).addTo(map);
 
         const toggleButtons = document.querySelectorAll(`[data-map-layer]`);
@@ -756,3 +655,4 @@
         window.setInterval(fetchLiveUnit, 5000);
     };
 })();
+

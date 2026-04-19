@@ -43,7 +43,6 @@
                     </div>
                     <div class="map-source-copy">OSM base + seamark overlay</div>
                     <div class="map-layer-toolbar" aria-label="Map options">
-                        <button class="map-layer-chip" type="button" data-map-layer="weather">Weather</button>
                         <button class="map-layer-chip active" type="button" data-map-layer="ais">AIS Trails</button>
                     </div>
                     <div class="map-layer-toolbar map-filter-toolbar" aria-label="Vessel filters">
@@ -64,12 +63,12 @@
 
             <div class="map-footer">
                 <div class="mini-stat">
-                    <div class="mini-stat-label">Bathymetry</div>
-                    <div class="mini-stat-value">Depth bands active</div>
+                    <div class="mini-stat-label">Live Track</div>
+                    <div class="mini-stat-value">Vessel trail active</div>
                 </div>
                 <div class="mini-stat">
                     <div class="mini-stat-label">Coverage</div>
-                    <div class="mini-stat-value">GPS + AIS + harbours</div>
+                    <div class="mini-stat-value">GPS + AIS ready</div>
                 </div>
                 <div class="mini-stat">
                     <div class="mini-stat-label">View Mode</div>
@@ -408,24 +407,6 @@
                 new { name = "Makassar Pilot Zone", lat = -1.85, lng = 119.15, radius = 45000, tone = "live" },
                 new { name = "Coal Anchorage East", lat = -2.45, lng = 119.72, radius = 30000, tone = "warn" },
                 new { name = "Restricted Energy Corridor", lat = -1.25, lng = 119.48, radius = 22000, tone = "alert" }
-            },
-            depthBands = new[]
-            {
-                new { name = "Shelf 20-50m", lat = -1.85, lng = 118.95, radius = 220000, tone = "shallow", label = "20-50 m" },
-                new { name = "Slope 50-200m", lat = -2.15, lng = 119.15, radius = 150000, tone = "mid", label = "50-200 m" },
-                new { name = "Deep 200-1000m", lat = -2.45, lng = 119.4, radius = 98000, tone = "deep", label = "200-1000 m" }
-            },
-            harbours = new[]
-            {
-                new { name = "Makassar New Port", lat = -5.11, lng = 119.43, type = "Terminal" },
-                new { name = "Samarinda Anchorage", lat = -0.44, lng = 117.19, type = "Anchorage" },
-                new { name = "Balikpapan Port", lat = -1.27, lng = 116.83, type = "Port" }
-            },
-            weatherVectors = new[]
-            {
-                new { name = "NE Wind 18 kn", lat = -1.55, lng = 119.0, angle = 35 },
-                new { name = "Current 1.6 kn", lat = -2.05, lng = 119.32, angle = 102 },
-                new { name = "Wave front", lat = -1.6, lng = 119.55, angle = 8 }
             },
             liveUnitApi = "/api/unit-status"
         }));
