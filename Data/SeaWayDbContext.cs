@@ -15,6 +15,8 @@ public class SeaWayDbContext(DbContextOptions<SeaWayDbContext> options) : DbCont
 
     public DbSet<UnitMaster> UnitMasters => Set<UnitMaster>();
 
+    public DbSet<HistoryTrack> HistoryTracks => Set<HistoryTrack>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<UserLogin>(entity =>
@@ -98,6 +100,21 @@ public class SeaWayDbContext(DbContextOptions<SeaWayDbContext> options) : DbCont
             entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.HasIndex(x => x.UnitCode).IsUnique();
             entity.HasIndex(x => x.DeviceIdNo).IsUnique();
+        });
+
+        modelBuilder.Entity<HistoryTrack>(entity =>
+        {
+            entity.ToTable("tbl_m_history_track");
+            entity.HasKey(x => x.TrackId);
+            entity.Property(x => x.TrackId).HasColumnName("track_id");
+            entity.Property(x => x.UnitId).HasColumnName("unit_id");
+            entity.Property(x => x.UnitCode).HasColumnName("unit_code");
+            entity.Property(x => x.Latitude).HasColumnName("latitude");
+            entity.Property(x => x.Longitude).HasColumnName("longitude");
+            entity.Property(x => x.SpeedKnots).HasColumnName("speed_knots");
+            entity.Property(x => x.HeadingDeg).HasColumnName("heading_deg");
+            entity.Property(x => x.RecordedAt).HasColumnName("recorded_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(x => new { x.UnitId, x.RecordedAt });
         });
     }
 }

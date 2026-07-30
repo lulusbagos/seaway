@@ -55,6 +55,32 @@ public class MapSignalViewModel
     public required double Longitude { get; init; }
 
     public string? Heading { get; init; }
+
+    public string? CameraUrl { get; init; }
+
+    public string? DeviceId { get; init; }
+
+    public string? UnitCode { get; init; }
+
+    public string? UnitName { get; init; }
+
+    public string? UnitDetail { get; init; }
+
+    public string? LocationStatus { get; init; }
+
+    public string? LocationNote { get; init; }
+
+    public string? RawLatitude { get; init; }
+
+    public string? RawLongitude { get; init; }
+
+    public string? DecimalLatitude { get; init; }
+
+    public string? DecimalLongitude { get; init; }
+
+    public IReadOnlyList<UnitTelemetryFieldViewModel>? Telemetry { get; init; }
+
+    public IReadOnlyList<UnitStatusTrailPointViewModel>? Trail { get; init; }
 }
 
 public class UnitStatusSnapshotViewModel

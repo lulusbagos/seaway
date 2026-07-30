@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using SeaWay.Data;
 using SeaWay.Services;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
@@ -12,6 +14,7 @@ if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_URL
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -22,6 +25,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<SeawayDemoDataService>();
 builder.Services.AddScoped<UnitMasterService>();
 builder.Services.AddScoped<UnitStatusService>();
+builder.Services.AddScoped<HistoryTrackService>();
+builder.Services.AddHostedService<HistoryTrackWorker>();
 var connectionString =
     Environment.GetEnvironmentVariable("SEAWAY_PG_CONNECTION")
     ?? builder.Configuration.GetConnectionString("Postgres")

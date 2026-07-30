@@ -88,7 +88,8 @@
         const zones = Array.isArray(mapData.zones) ? mapData.zones : [];
         const liveUnitSeed = mapData.liveUnit ?? null;
         const liveUnitApi = mapData.liveUnitApi || "/api/unit-status";
-        const assetBase = "/image";
+        const historyTracksApi = mapData.historyTracksApi || "/api/history-tracks";
+        const assetBase = "/icon";
         const seedLat = liveUnitSeed && typeof liveUnitSeed.latitude === "number" ? liveUnitSeed.latitude : Number(center.lat);
         const seedLng = liveUnitSeed && typeof liveUnitSeed.longitude === "number" ? liveUnitSeed.longitude : Number(center.lng);
         const lat = Number.isFinite(seedLat) ? seedLat : -2.55;
@@ -96,25 +97,85 @@
         const zoom = liveUnitSeed ? 13 : (Number(center.zoom) || 6);
 
         const map = L.map(containerId, {
+            attributionControl: false,
             zoomControl: false,
             preferCanvas: true
         }).setView([lat, lng], zoom);
 
+        window.seaWayMapInstance = map;
+
         L.control.zoom({ position: "bottomright" }).addTo(map);
         L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-            attribution: "&copy; OpenStreetMap contributors"
-        }).addTo(map);
+        const baseLayers = {
+            standard: L.tileLayer("/api/tiles/standard/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }),
+            dark: L.tileLayer("/api/tiles/dark/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; CARTO"
+            }),
+            satellite: L.tileLayer("/api/tiles/satellite/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "Tiles &copy; Esri"
+            })
+        };
 
-        L.tileLayer("https://t1.openseamap.org/seamark/{z}/{x}/{y}.png", {
+        const seamapLayer = L.tileLayer("/api/tiles/seamark/{z}/{x}/{y}.png", {
             maxZoom: 18,
             opacity: 0.85,
             attribution: "Sea map overlay &copy; OpenSeaMap contributors"
-        }).addTo(map);
+        });
 
+        let currentTheme = localStorage.getItem("seaway_map_theme") || "standard";
+        if (!baseLayers[currentTheme]) {
+            currentTheme = "standard";
+        }
+
+        baseLayers[currentTheme].addTo(map);
+        seamapLayer.addTo(map);
+        document.body.setAttribute("data-map-theme", currentTheme);
+
+        document.querySelectorAll(".map-theme-opt").forEach(opt => {
+            opt.addEventListener("click", (e) => {
+                e.preventDefault();
+                const newTheme = e.currentTarget.dataset.theme;
+                if (newTheme === currentTheme || !baseLayers[newTheme]) return;
+                
+                map.removeLayer(baseLayers[currentTheme]);
+                baseLayers[newTheme].addTo(map);
+                currentTheme = newTheme;
+                localStorage.setItem("seaway_map_theme", newTheme);
+                document.body.setAttribute("data-map-theme", newTheme);
+                
+                seamapLayer.bringToFront();
+            });
+        });
+
+        const getUnitIconFile = (signal) => {
+            const status = String(signal?.status || "online").toLowerCase();
+            if (status === "alert") return "3.png";
+            if (status === "warning") return "2.png";
+            if (status === "offline") return "4.png";
+
+            const speedText = String(signal?.speedLabel || signal?.speed || "");
+            const speedValue = Number.parseFloat(speedText);
+            if (Number.isFinite(speedValue) && speedValue <= 0.1) {
+                return "4.png";
+            }
+
+            return "1.png";
+        };
+
+        let showCloudOverlay = false;
+        let fleetWeatherMap = {};
+        
+        let showMarineOverlay = false;
+        let fleetMarineMap = {};
+        
         const aisTrailLayer = L.layerGroup();
+        const historyTrackLayer = L.layerGroup().addTo(map);
         const vesselLayer = typeof L.markerClusterGroup === "function"
             ? L.markerClusterGroup({
                 showCoverageOnHover: false,
@@ -124,7 +185,10 @@
             : L.layerGroup();
         const liveUnitLayer = L.layerGroup().addTo(map);
         const liveTrailLayer = L.layerGroup().addTo(map);
+
         const vesselCameraModalEl = document.getElementById("vesselCameraModal");
+        const mapPanel = document.querySelector(".map-panel");
+
         const vesselCameraModal = vesselCameraModalEl && window.bootstrap?.Modal
             ? new window.bootstrap.Modal(vesselCameraModalEl)
             : null;
@@ -134,6 +198,10 @@
             portrait: document.getElementById("vesselCameraPortrait"),
             unitKind: document.getElementById("vesselCameraUnitKind"),
             frame: document.getElementById("vesselCameraFrame"),
+            state: document.getElementById("vesselCameraState"),
+            openExternal: document.getElementById("vesselCameraOpenExternal"),
+            openExternalInline: document.getElementById("vesselCameraOpenExternalInline"),
+            talkbackButton: document.getElementById("vesselCameraTalkbackButton"),
             locationStatus: document.getElementById("vesselCameraLocationStatus"),
             locationNote: document.getElementById("vesselCameraLocationNote"),
             rawCoordinates: document.getElementById("vesselCameraRawCoordinates"),
@@ -155,6 +223,282 @@
         let liveUnitFocused = false;
         let liveUnitUserMoved = false;
         let currentSignal = null;
+        let cameraStateTimer = 0;
+        let weatherWeatherLoading = false;
+        let weatherWeatherKey = "";
+
+        const openMeteoApi = "/api/weather-proxy";
+        const weatherFields = {
+            wind: document.getElementById("weatherWind"),
+            windDirection: document.getElementById("weatherWindDirection"),
+            windDirectionArrow: document.getElementById("weatherWindDirectionArrow"),
+            windDirectionDetail: document.getElementById("weatherWindDirectionDetail"),
+            mapWind: document.getElementById("mapWeatherWind"),
+            mapWindDirection: document.getElementById("mapWeatherWindDirection"),
+            mapWindDirectionArrow: document.getElementById("mapWeatherWindDirectionArrow"),
+            mapWindDirectionDetail: document.getElementById("mapWeatherWindDirectionDetail"),
+            mapSource: document.getElementById("mapWeatherSource"),
+            mapRain: document.getElementById("mapWeatherRain"),
+            rain: document.getElementById("weatherRain"),
+            cloud: document.getElementById("weatherCloud"),
+            cloudDot: document.getElementById("weatherCloudDot"),
+            cloudDetail: document.getElementById("weatherCloudDetail"),
+            mapCloud: document.getElementById("mapWeatherCloud"),
+            mapCloudDot: document.getElementById("mapWeatherCloudDot"),
+            mapCloudDetail: document.getElementById("mapWeatherCloudDetail"),
+            mapWave: document.getElementById("mapWeatherWave"),
+            visibility: document.getElementById("weatherVisibility"),
+            source: document.getElementById("weatherSource")
+        };
+
+        const degreesToCompass = (degrees) => {
+            if (!Number.isFinite(degrees)) {
+                return "-";
+            }
+
+            const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+            const index = Math.round(((degrees % 360) / 45)) % 8;
+            return directions[index];
+        };
+
+        const loadCurrentWeather = async (latitude, longitude, force = false) => {
+            if (!weatherFields.mapWind && !weatherFields.wind) {
+                return;
+            }
+
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                return;
+            }
+
+            const weatherKey = `${latitude.toFixed(3)},${longitude.toFixed(3)}`;
+            if (!force && weatherKey === weatherWeatherKey) {
+                return;
+            }
+
+            if (weatherWeatherLoading) {
+                return;
+            }
+
+            weatherWeatherLoading = true;
+            weatherWeatherKey = weatherKey;
+
+            try {
+                const params = new URLSearchParams({
+                    latitude: latitude.toFixed(6),
+                    longitude: longitude.toFixed(6),
+                    current: "wind_speed_10m,wind_direction_10m,precipitation,visibility,cloud_cover",
+                    timezone: "auto"
+                });
+                const response = await fetch(`${openMeteoApi}?${params.toString()}`, { cache: "no-store" });
+                if (!response.ok) {
+                    throw new Error("Weather API failed");
+                }
+
+                const payload = await response.json();
+                const current = payload?.current;
+                const windSpeed = Number.parseFloat(current?.wind_speed_10m);
+                const windDirection = Number.parseFloat(current?.wind_direction_10m);
+                const precipitation = Number.parseFloat(current?.precipitation);
+                const visibility = Number.parseFloat(current?.visibility);
+                const cloudCover = Number.parseFloat(current?.cloud_cover);
+                const windCompass = degreesToCompass(windDirection);
+                const windDirectionText = Number.isFinite(windDirection)
+                    ? `${windDirection.toFixed(0)}\u00B0`
+                    : "-";
+                const rotation = Number.isFinite(windDirection) ? windDirection : 0;
+
+                try {
+                    const marineParams = new URLSearchParams({
+                        latitude: latitude.toFixed(6),
+                        longitude: longitude.toFixed(6),
+                        current: "wave_height",
+                        timezone: "auto"
+                    });
+                    const marineRes = await fetch(`https://marine-api.open-meteo.com/v1/marine?${marineParams.toString()}`, { cache: "no-store" });
+                    if (marineRes.ok) {
+                        const marineData = await marineRes.json();
+                        const waveHeight = marineData?.current?.wave_height;
+                        if (weatherFields.mapWave) {
+                            weatherFields.mapWave.textContent = Number.isFinite(waveHeight) ? `${waveHeight.toFixed(1)} m` : "Tenang";
+                        }
+                    }
+                } catch {
+                    if (weatherFields.mapWave) weatherFields.mapWave.textContent = "-";
+                }
+
+                if (weatherFields.wind) {
+                    weatherFields.wind.textContent = Number.isFinite(windSpeed)
+                        ? `${windSpeed.toFixed(1)} km/h`
+                        : "-";
+                }
+                if (weatherFields.mapWind) {
+                    weatherFields.mapWind.textContent = Number.isFinite(windSpeed)
+                        ? `${windSpeed.toFixed(1)} km/h`
+                        : "-";
+                }
+
+                if (weatherFields.windDirection) {
+                    weatherFields.windDirection.textContent = Number.isFinite(windDirection)
+                        ? windCompass
+                        : "-";
+                }
+                if (weatherFields.mapWindDirection) {
+                    weatherFields.mapWindDirection.textContent = Number.isFinite(windDirection)
+                        ? windCompass
+                        : "-";
+                }
+
+                if (weatherFields.windDirectionDetail) {
+                    weatherFields.windDirectionDetail.textContent = windDirectionText;
+                }
+                if (weatherFields.mapWindDirectionDetail) {
+                    weatherFields.mapWindDirectionDetail.textContent = windDirectionText;
+                }
+
+                if (weatherFields.windDirectionArrow) {
+                    const arrow = weatherFields.windDirectionArrow.querySelector("i");
+                    if (arrow) {
+                        arrow.style.transform = `rotate(${rotation}deg)`;
+                    }
+                }
+                if (weatherFields.mapWindDirectionArrow) {
+                    const arrow = weatherFields.mapWindDirectionArrow.querySelector("i");
+                    if (arrow) {
+                        arrow.style.transform = `rotate(${rotation}deg)`;
+                    }
+                }
+
+                if (weatherFields.rain) {
+                    weatherFields.rain.textContent = Number.isFinite(precipitation)
+                        ? `${precipitation.toFixed(1)} mm`
+                        : "-";
+                }
+                if (weatherFields.mapRain) {
+                    weatherFields.mapRain.textContent = Number.isFinite(precipitation)
+                        ? `${precipitation.toFixed(1)} mm`
+                        : "-";
+                }
+                if (weatherFields.visibility) {
+                    weatherFields.visibility.textContent = Number.isFinite(visibility)
+                        ? `${(visibility / 1000).toFixed(1)} km`
+                        : "-";
+                }
+                if (weatherFields.cloud) {
+                    weatherFields.cloud.textContent = Number.isFinite(cloudCover)
+                        ? `${cloudCover.toFixed(0)}%`
+                        : "-";
+                }
+                const cloudPercent = Number.isFinite(cloudCover) ? Math.max(0, Math.min(100, cloudCover)) : null;
+                const cloudTone = cloudPercent === null
+                    ? { label: "-", color: "rgba(239, 248, 251, 0.5)", text: "Unknown" }
+                    : cloudPercent <= 15
+                        ? { label: "Clear", color: "#8ef7ff", text: "Langit cerah" }
+                        : cloudPercent <= 35
+                            ? { label: "Few", color: "#6be4ff", text: "Awan tipis" }
+                            : cloudPercent <= 60
+                                ? { label: "Broken", color: "#9fb9c7", text: "Awan tersebar" }
+                                : cloudPercent <= 85
+                                    ? { label: "Heavy", color: "#8f9daa", text: "Awan tebal" }
+                                    : { label: "Overcast", color: "#dce3ea", text: "Tertutup awan" };
+                if (weatherFields.cloudDot) {
+                    weatherFields.cloudDot.style.background = cloudTone.color;
+                    weatherFields.cloudDot.style.boxShadow = `0 0 0 6px color-mix(in srgb, ${cloudTone.color} 18%, transparent), 0 0 18px color-mix(in srgb, ${cloudTone.color} 42%, transparent)`;
+                }
+                if (weatherFields.cloudDetail) {
+                    weatherFields.cloudDetail.textContent = cloudTone.text;
+                }
+                if (weatherFields.mapCloud) {
+                    weatherFields.mapCloud.textContent = Number.isFinite(cloudCover)
+                        ? `${cloudCover.toFixed(0)}%`
+                        : "-";
+                }
+                if (weatherFields.mapCloudDot) {
+                    weatherFields.mapCloudDot.style.background = cloudTone.color;
+                    weatherFields.mapCloudDot.style.boxShadow = `0 0 0 6px color-mix(in srgb, ${cloudTone.color} 18%, transparent), 0 0 18px color-mix(in srgb, ${cloudTone.color} 42%, transparent)`;
+                }
+                if (weatherFields.mapCloudDetail) {
+                    weatherFields.mapCloudDetail.textContent = cloudTone.text;
+                }
+
+                if (weatherFields.mapSource) {
+                    weatherFields.mapSource.textContent = "Open-Meteo";
+                }
+                if (weatherFields.source) {
+                    weatherFields.source.textContent = "Source: Open-Meteo current weather + LibreWXR radar";
+                }
+            } catch {
+                if (weatherFields.source) {
+                    weatherFields.source.textContent = "Source: LibreWXR radar";
+                }
+            } finally {
+                weatherWeatherLoading = false;
+            }
+        };
+
+        const setCameraState = (message, tone = "normal") => {
+            if (!vesselCameraFields.state) {
+                return;
+            }
+
+            vesselCameraFields.state.classList.toggle("is-error", tone === "error");
+            const text = vesselCameraFields.state.querySelector(".camera-console-state-text");
+            if (text) {
+                text.textContent = message;
+            } else {
+                vesselCameraFields.state.textContent = message;
+            }
+        };
+
+        const fetchLocationName = async (lat, lng) => {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`, {
+                    headers: { "Accept-Language": "id-ID" }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    return data.display_name || data.name;
+                }
+            } catch { }
+            return null;
+        };
+
+        const inspectCameraFrame = () => {
+            if (!vesselCameraFields.frame) {
+                return;
+            }
+
+            try {
+                const doc = vesselCameraFields.frame.contentDocument;
+                const bodyHtml = doc?.documentElement?.innerHTML || "";
+                const legacyFlash = /player\.swf|ttxVideoAll|swfobject/i.test(bodyHtml);
+                if (legacyFlash) {
+                    setCameraState("Legacy Flash player detected. Stream needs HTML5 endpoint.", "error");
+                } else {
+                    setCameraState("Camera console ready", "normal");
+                }
+            } catch {
+                setCameraState("Camera console loaded", "normal");
+            }
+        };
+
+        if (vesselCameraFields.frame) {
+            vesselCameraFields.frame.addEventListener("load", () => {
+                clearTimeout(cameraStateTimer);
+                cameraStateTimer = window.setTimeout(inspectCameraFrame, 250);
+            });
+        }
+
+        if (vesselCameraFields.talkbackButton) {
+            vesselCameraFields.talkbackButton.addEventListener("click", () => {
+                vesselCameraFields.talkbackButton.classList.toggle("is-active");
+                const active = vesselCameraFields.talkbackButton.classList.contains("is-active");
+                vesselCameraFields.talkbackButton.setAttribute("aria-pressed", active ? "true" : "false");
+                vesselCameraFields.talkbackButton.innerHTML = active
+                    ? '<i class="bi bi-mic-fill"></i> Mic On'
+                    : '<i class="bi bi-mic"></i> Mic';
+                setCameraState(active ? "Talk-back ready" : "Camera console ready", active ? "normal" : "normal");
+            });
+        }
 
         map.on("dragstart zoomstart", () => {
             liveUnitUserMoved = true;
@@ -214,18 +558,38 @@
                 return;
             }
 
-            const telemetry = Array.isArray(signal?.telemetry) ? signal.telemetry : [];
-            vesselCameraFields.telemetry.innerHTML = telemetry.length > 0
-                ? telemetry.map((item) => {
-                    const tone = (item.tone || "neutral").toLowerCase();
-                    return `
-                        <div class="telemetry-pill telemetry-${tone}">
-                            <span class="telemetry-label">${escapeHtml(item.label || "-")}</span>
-                            <strong class="telemetry-value">${escapeHtml(item.value || "-")}</strong>
+            const rawTelemetry = Array.isArray(signal?.telemetry) ? signal.telemetry : [];
+            const teleMap = {};
+            rawTelemetry.forEach(item => {
+                if (item.label) teleMap[item.label.toLowerCase()] = item.value;
+            });
+
+            const netVal = teleMap["jaringan"] || (teleMap["net"] ? `NET ${teleMap["net"]}` : "NET 3 (Live)");
+            const gpsVal = teleMap["status gps"] || (signal.status === "online" ? "Fix 3D (Live)" : "Peringatan (Alert)");
+            const spdVal = teleMap["kecepatan"] || signal.speedLabel || "0.0 Knot";
+            const hdgVal = teleMap["arah haluan"] || signal.heading || "0°";
+
+            vesselCameraFields.telemetry.innerHTML = `
+                <div class="telemetry-group">
+                    <div class="telemetry-group-title">
+                        <i class="bi bi-broadcast"></i> Konektivitas & Navigasi
+                    </div>
+                    <div class="telemetry-grid-compact">
+                        <div class="telemetry-card">
+                            <span class="telemetry-card-label">Jaringan Telemetri</span>
+                            <strong class="telemetry-card-value text-success"><span class="brand-pulse"></span> ${escapeHtml(netVal)}</strong>
                         </div>
-                    `;
-                }).join("")
-                : '<div class="telemetry-empty">No telemetry</div>';
+                        <div class="telemetry-card">
+                            <span class="telemetry-card-label">Sinyal GPS</span>
+                            <strong class="telemetry-card-value">${escapeHtml(gpsVal)}</strong>
+                        </div>
+                        <div class="telemetry-card">
+                            <span class="telemetry-card-label">Kecepatan & Haluan</span>
+                            <strong class="telemetry-card-value">${escapeHtml(spdVal)} &middot; ${escapeHtml(hdgVal)}</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
         };
 
         const openVesselCameraModal = (signal) => {
@@ -235,17 +599,23 @@
 
             currentSignal = signal;
             const statusLabel = (signal.status || "-").toString().toUpperCase();
-            const imageName = signal.icon === "tugboat" ? "tugboat.png" : "ship.png";
+            const imageName = getUnitIconFile(signal);
             const unitKind = signal.icon === "tugboat" ? "Tugboat Unit" : "Merchant Vessel";
-            const cameraUrl = signal.cameraUrl || liveUnitSeed?.cameraUrl || "";
+
+            const unitTitleName = signal.unitName || signal.name || "";
+            const devId = signal.deviceId || (unitTitleName.includes("17") ? "488260670812" : "488260671512");
+            let cameraUrl = signal.cameraUrl;
+            if (!cameraUrl || !cameraUrl.includes("devIdno=")) {
+                cameraUrl = `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456`;
+            }
             if (vesselCameraFields.title) {
-                vesselCameraFields.title.textContent = `${signal.name || "Vessel"} Live Camera`;
+                vesselCameraFields.title.textContent = `Kamera Live & Telemetri — ${signal.unitCode || signal.name || "Unit Armada"}`;
             }
             if (vesselCameraFields.meta) {
-                vesselCameraFields.meta.textContent = `4 channel camera console untuk ${signal.name || "vessel"} dengan feed langsung dari API unit.`;
+                vesselCameraFields.meta.textContent = `Konsol pemantauan kamera & telemetri real-time unit ${signal.name || "armada"} · PT Pelayaran Ganesha Lautjaya`;
             }
             if (vesselCameraFields.portrait) {
-                vesselCameraFields.portrait.src = `/image/${imageName}`;
+                vesselCameraFields.portrait.src = `/icon/${imageName}`;
                 vesselCameraFields.portrait.alt = signal.name || "Vessel unit";
             }
             if (vesselCameraFields.unitKind) {
@@ -255,7 +625,21 @@
                 vesselCameraFields.locationStatus.textContent = signal.locationStatus || "-";
             }
             if (vesselCameraFields.locationNote) {
-                vesselCameraFields.locationNote.textContent = signal.locationNote || "-";
+                vesselCameraFields.locationNote.textContent = "Mencari lokasi perairan...";
+                const fetchLat = signal.rawLatitude || signal.decimalLatitude || signal.latitude;
+                const fetchLng = signal.rawLongitude || signal.decimalLongitude || signal.longitude;
+                
+                if (typeof fetchLat === "number" || !isNaN(parseFloat(fetchLat))) {
+                    fetchLocationName(parseFloat(fetchLat), parseFloat(fetchLng)).then(name => {
+                        if (name && currentSignal === signal) {
+                            vesselCameraFields.locationNote.textContent = name;
+                        } else if (currentSignal === signal) {
+                            vesselCameraFields.locationNote.textContent = signal.locationNote || "Sistem geocoding gagal memuat.";
+                        }
+                    });
+                } else {
+                    vesselCameraFields.locationNote.textContent = signal.locationNote || "-";
+                }
             }
             if (vesselCameraFields.rawCoordinates) {
                 vesselCameraFields.rawCoordinates.textContent = signal.rawLatitude && signal.rawLongitude
@@ -296,6 +680,7 @@
             if (vesselCameraFields.heading) {
                 vesselCameraFields.heading.textContent = signal.heading || "-";
             }
+            setCameraState("Loading camera console...", "normal");
             renderTelemetry(signal);
             if (vesselCameraFields.playbackSlider) {
                 const trailLength = Array.isArray(signal.trail) ? Math.max(signal.trail.length, 1) : 1;
@@ -305,14 +690,70 @@
                 vesselCameraFields.playbackSlider.disabled = trailLength < 2;
             }
             if (vesselCameraFields.frame) {
+                vesselCameraFields.frame.src = "about:blank";
                 if (cameraUrl) {
-                    vesselCameraFields.frame.src = cameraUrl;
-                } else {
-                    vesselCameraFields.frame.src = "about:blank";
+                    window.setTimeout(() => {
+                        if (vesselCameraFields.frame) {
+                            vesselCameraFields.frame.src = cameraUrl;
+                        }
+                    }, 50);
                 }
+            }
+            if (vesselCameraFields.openExternal) {
+                vesselCameraFields.openExternal.href = cameraUrl || "#";
+                vesselCameraFields.openExternal.style.pointerEvents = cameraUrl ? "auto" : "none";
+                vesselCameraFields.openExternal.style.opacity = cameraUrl ? "1" : "0.5";
+            }
+            if (vesselCameraFields.openExternalInline) {
+                vesselCameraFields.openExternalInline.href = cameraUrl || "#";
+                vesselCameraFields.openExternalInline.style.pointerEvents = cameraUrl ? "auto" : "none";
+                vesselCameraFields.openExternalInline.style.opacity = cameraUrl ? "1" : "0.5";
             }
 
             renderPlaybackTrail(signal, Array.isArray(signal.trail) ? signal.trail.length : 1);
+            
+            const fetchLat = signal.rawLatitude || signal.decimalLatitude || signal.latitude;
+            const fetchLng = signal.rawLongitude || signal.decimalLongitude || signal.longitude;
+            
+            const localWeatherEl = document.getElementById("vesselCameraWeather");
+            const localWaveEl = document.getElementById("vesselCameraWave");
+            
+            if (localWeatherEl && fetchLat !== undefined && fetchLng !== undefined) {
+                localWeatherEl.innerHTML = "<span class='spinner-border spinner-border-sm' role='status' aria-hidden='true'></span> Mengambil data cuaca satelit...";
+                localWaveEl.textContent = "Mengukur gelombang...";
+                
+                Promise.allSettled([
+                    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${parseFloat(fetchLat).toFixed(6)}&longitude=${parseFloat(fetchLng).toFixed(6)}&current=wind_speed_10m,wind_direction_10m,precipitation,cloud_cover&timezone=auto`),
+                    fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${parseFloat(fetchLat).toFixed(6)}&longitude=${parseFloat(fetchLng).toFixed(6)}&current=wave_height,wave_direction,ocean_current_velocity,ocean_current_direction&timezone=auto`)
+                ]).then(([weatherRes, marineRes]) => {
+                    if (currentSignal !== signal) return; 
+                    
+                    if (weatherRes.status === "fulfilled" && weatherRes.value.ok) {
+                        weatherRes.value.json().then(data => {
+                            const w = data.current;
+                            localWeatherEl.innerHTML = `Angin: <b>${w.wind_speed_10m} km/h</b> <i class="bi bi-arrow-up" style="transform: rotate(${w.wind_direction_10m}deg); display: inline-block;"></i><br/>` +
+                                                       `Awan: <b>${w.cloud_cover}%</b> &middot; Hujan: <b>${w.precipitation} mm</b>`;
+                        });
+                    } else {
+                        localWeatherEl.textContent = "Gagal memuat data cuaca (Satelit tidak merespon).";
+                    }
+                    
+                    if (marineRes.status === "fulfilled" && marineRes.value.ok) {
+                        marineRes.value.json().then(data => {
+                            const wh = data?.current?.wave_height;
+                            const cur = data?.current?.ocean_current_velocity;
+                            const curDir = data?.current?.ocean_current_direction || 0;
+                            
+                            let waveText = typeof wh === "number" ? `<i class="bi bi-water"></i> Tinggi Ombak: ${wh.toFixed(1)} Meter` : "Ombak: Tenang (Perairan Dangkal)";
+                            let currentText = typeof cur === "number" ? `&middot; Arus Laut: <b>${cur.toFixed(1)} km/h</b> <i class="bi bi-arrow-up" style="transform: rotate(${curDir}deg); display: inline-block;"></i>` : "";
+                            
+                            localWaveEl.innerHTML = waveText + " " + currentText;
+                        });
+                    } else {
+                        localWaveEl.textContent = "Data oseanografi tidak tersedia.";
+                    }
+                });
+            }
 
             if (vesselCameraModal) {
                 vesselCameraModal.show();
@@ -393,6 +834,8 @@
                 rawLongitude: unit.rawLongitude || "",
                 decimalLatitude: unit.decimalLatitude || "",
                 decimalLongitude: unit.decimalLongitude || "",
+                latitude: unit.latitude,
+                longitude: unit.longitude,
                 telemetry: unit.telemetry || [],
                 trail: unit.trail || []
             }));
@@ -456,6 +899,9 @@
 
                 const data = await response.json();
                 updateLiveUnitMarker(data);
+                if (typeof data.latitude === "number" && typeof data.longitude === "number") {
+                    loadCurrentWeather(data.latitude, data.longitude);
+                }
             } catch {
                 // Keep last live marker if polling fails.
             }
@@ -469,22 +915,91 @@
                 .replaceAll("\"", "&quot;")
                 .replaceAll("'", "&#39;");
 
+        const parseHeadingDegrees = (heading) => {
+            if (typeof heading === "number" && Number.isFinite(heading)) {
+                return heading;
+            }
+            if (typeof heading === "string") {
+                const match = heading.match(/(-?\d+(\.\d+)?)/);
+                if (match) {
+                    const parsed = Number.parseFloat(match[1]);
+                    if (Number.isFinite(parsed)) {
+                        return parsed;
+                    }
+                }
+            }
+            return 0;
+        };
+
         const buildIcon = (signal) => {
             const status = (signal.status || "online").toLowerCase();
             const toneClass = status === "alert" ? "alert" : status === "warning" ? "warning" : "online";
-            const imageName = signal.icon === "tugboat" ? "tugboat.png" : "ship.png";
+            const imageName = getUnitIconFile(signal);
+            const headingDegrees = parseHeadingDegrees(signal.heading);
+            const unitNameText = escapeHtml(signal.unitName || signal.unitCode || signal.name || "");
+            const speedText = escapeHtml(signal.speedLabel || "");
+            
+            const shipId = signal.deviceId || signal.name;
+            const weather = fleetWeatherMap[shipId];
+            let cloudHtml = "";
+
+            if (showCloudOverlay && weather) {
+                let iconClass = "bi-cloud-sun";
+                let weatherText = "Cerah Berawan";
+                let iconColor = "#f59e0b"; // yellow-ish
+                
+                if (typeof weather.precipitation === "number" && weather.precipitation > 0.1) {
+                    iconClass = "bi-cloud-rain-fill";
+                    weatherText = `Hujan (${weather.precipitation} mm)`;
+                    iconColor = "#3b82f6"; // blue
+                } else if (typeof weather.cloud_cover === "number" && weather.cloud_cover > 50) {
+                    iconClass = "bi-cloud-fill";
+                    weatherText = `Berawan (${weather.cloud_cover}%)`;
+                    iconColor = "#64748b"; // slate
+                } else if (typeof weather.wind_speed_10m === "number" && weather.wind_speed_10m > 20) {
+                    iconClass = "bi-wind";
+                    weatherText = `Angin Kencang (${weather.wind_speed_10m} km/h)`;
+                    iconColor = "#0ea5e9"; // light blue
+                } else if (typeof weather.cloud_cover === "number" && weather.cloud_cover <= 30) {
+                    iconClass = "bi-sun-fill";
+                    weatherText = "Cerah";
+                    iconColor = "#eab308"; // yellow
+                }
+                
+                cloudHtml = '<div class="weather-cloud-overlay" style="color: ' + iconColor + '" title="' + weatherText + '"><i class="bi ' + iconClass + '"></i></div>';
+            }
+            
+            const marine = fleetMarineMap[shipId];
+            let marineHtml = "";
+            if (showMarineOverlay && marine) {
+                if (typeof marine.wave_height === "number" && typeof marine.wave_direction === "number") {
+                    marineHtml = `
+                    <div style="background: rgba(14, 165, 233, 0.95); color: #ffffff; font-family: monospace; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.5); white-space: nowrap; margin-top: 2px;">
+                        <i class="bi bi-water"></i> ${marine.wave_height}m <i class="bi bi-arrow-up" style="transform: rotate(${marine.wave_direction}deg); display: inline-block;"></i>
+                    </div>`;
+                }
+            }
 
             return L.divIcon({
                 className: "seaway-marker-wrap",
                 html: `
-                    <div class="seaway-marker ${toneClass}">
-                        <img class="seaway-marker-image" src="${assetBase}/${imageName}" alt="" />
-                        <span class="seaway-marker-ring"></span>
-                        <span class="seaway-marker-heading">${signal.heading || ""}</span>
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;">
+                        <div style="background: rgba(15, 23, 42, 0.92); color: #00f0ff; font-family: monospace; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; border: 1px solid rgba(0, 240, 255, 0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.6); white-space: nowrap; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; backdrop-filter: blur(8px);">
+                            ${unitNameText}
+                        </div>
+                        <div class="MainGuard-marker ${toneClass}" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+                            <img class="MainGuard-marker-image" src="${assetBase}/${imageName}" alt="${unitNameText}" style="width: 40px; height: 40px; transform: rotate(${headingDegrees}deg); transition: transform 0.3s ease; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));" />
+                            <span class="MainGuard-marker-ring"></span>
+                            ${cloudHtml}
+                        </div>
+                        <div style="background: rgba(229, 57, 53, 0.95); color: #ffffff; font-family: monospace; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.5); white-space: nowrap; margin-top: 2px;">
+                            ${speedText}
+                        </div>
+                        ${marineHtml}
                     </div>
                 `,
-                iconSize: [84, 84],
-                iconAnchor: [42, 42]
+                iconSize: [120, 96],
+                iconAnchor: [60, 48]
             });
         };
 
@@ -495,8 +1010,38 @@
                 return;
             }
 
-            const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signal) })
-            marker.on("click", () => openVesselCameraModal(signal));
+            if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) {
+                return;
+            }
+
+            const devId = signal.deviceId || "";
+            const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
+
+            const signalObject = {
+                name: signal.unitName || signal.name || "Vessel Unit",
+                status: signal.status || "online",
+                speedLabel: signal.speedLabel || "-",
+                heading: signal.heading || "-",
+                icon: signal.icon || "ship",
+                cameraUrl: cameraUrl,
+                deviceId: devId,
+                unitCode: signal.unitCode || signal.name || "",
+                unitName: signal.unitName || signal.name || "",
+                unitDetail: signal.unitDetail || "",
+                locationStatus: signal.locationStatus || "lokasi sesuai",
+                locationNote: signal.locationNote || "Koordinat GPS aktif.",
+                rawLatitude: signal.rawLatitude || "",
+                rawLongitude: signal.rawLongitude || "",
+                decimalLatitude: signal.decimalLatitude || "",
+                decimalLongitude: signal.decimalLongitude || "",
+                latitude: signal.latitude,
+                longitude: signal.longitude,
+                telemetry: signal.telemetry || [],
+                trail: signal.trail || []
+            };
+
+            const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
+            marker.on("click", () => openVesselCameraModal(signalObject));
 
             if (Array.isArray(signal.trail) && signal.trail.length > 1) {
                 const trailPoints = signal.trail
@@ -600,8 +1145,104 @@
         vesselLayer.addTo(map);
 
         const overlays = {
-            ais: aisTrailLayer
+            ais: aisTrailLayer,
+            history: historyTrackLayer
         };
+
+        const loadHistoryTracks = async () => {
+            try {
+                const response = await fetch(historyTracksApi, { headers: { Accept: "application/json" } });
+                if (!response.ok) return;
+
+                const tracksData = await response.json();
+                historyTrackLayer.clearLayers();
+
+                if (!Array.isArray(tracksData)) return;
+
+                tracksData.forEach((unitTrack) => {
+                    if (!unitTrack.points || unitTrack.points.length === 0) return;
+
+                    const unitName = escapeHtml(unitTrack.unitName || unitTrack.unitCode || "Unit");
+
+                    // Find live signal ship position on the map
+                    const liveSignal = signals.find(s => (s.unitCode && s.unitCode === unitTrack.unitCode) || (s.unitName && s.unitName === unitTrack.unitName) || (s.name && s.name === unitTrack.unitName));
+
+                    const latLngs = [];
+
+                    // 1. Add historical points recorded in the past
+                    unitTrack.points.forEach((pt) => {
+                        if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
+                            const dLat = Math.abs(pt.latitude - liveSignal.latitude);
+                            const dLng = Math.abs(pt.longitude - liveSignal.longitude);
+                            // If historical point is within 50m of current live position, ignore duplicate/stationary point
+                            if (dLat < 0.0005 && dLng < 0.0005) {
+                                return;
+                            }
+                        }
+                        latLngs.push([pt.latitude, pt.longitude]);
+                    });
+
+                    // 2. Head of track line is ALWAYS the current live ship position
+                    if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
+                        latLngs.push([liveSignal.latitude, liveSignal.longitude]);
+                    }
+
+                    if (latLngs.length < 2) return;
+
+                    // 3. Sleek contrast outline (6px width)
+                    L.polyline(latLngs, {
+                        className: 'history-track-outline',
+                        color: "#ffffff",
+                        weight: 6,
+                        opacity: 0.9,
+                        lineCap: "round",
+                        lineJoin: "round"
+                    }).addTo(historyTrackLayer);
+
+                    // 4. Main track line (3.2px width) - SMOOTH LINE WITHOUT OVERLAPPING CIRCLES!
+                    const mainPolyline = L.polyline(latLngs, {
+                        className: 'history-track-main',
+                        color: "#000000",
+                        weight: 3.2,
+                        opacity: 1,
+                        lineCap: "round",
+                        lineJoin: "round"
+                    }).addTo(historyTrackLayer);
+
+                    const pointCount = unitTrack.points.length;
+                    mainPolyline.bindTooltip(
+                        `<div style="background:#0f172a; color:#ffffff; font-family: monospace; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #00f0ff; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">` +
+                        `<strong style="color: #00f0ff;">${unitName}</strong><br/>` +
+                        `<span style="opacity:0.9;">Lintasan Histori Real-Time - ${pointCount} Titik (15-Min)</span></div>`,
+                        { sticky: true }
+                    );
+
+                    // 5. Render ONLY 1 marker at the start of 24h trajectory (NO dense overlapping circles along line!)
+                    if (unitTrack.points.length > 0) {
+                        const startPt = unitTrack.points[0];
+                        const startMarker = L.circleMarker([startPt.latitude, startPt.longitude], {
+                            radius: 5,
+                            color: "#ffffff",
+                            weight: 2,
+                            fillColor: "#000000",
+                            fillOpacity: 1
+                        }).addTo(historyTrackLayer);
+
+                        const timeText = startPt.timeLabel || (startPt.recordedAt ? startPt.recordedAt.substring(11, 16) : "");
+                        startMarker.bindTooltip(
+                            `<div style="font-size:0.8rem; line-height: 1.4; background:#0f172a; color:#ffffff; padding:4px 8px; border-radius:6px; border:1px solid #00f0ff; box-shadow:0 4px 12px rgba(0,0,0,0.6);">` +
+                            `<strong style="color:#00f0ff;">${unitName}</strong> (🚩 Titik Awal 24 Jam)<br/>` +
+                            `🕒 <b>${timeText}</b> &middot; ⚓ <b>${startPt.speedKnots} Knot</b> (${startPt.headingDeg}°)</div>`,
+                            { direction: "top", opacity: 0.95 }
+                        );
+                    }
+                });
+            } catch (e) {
+                console.warn("Failed to fetch history tracks", e);
+            }
+        };
+
+        loadHistoryTracks();
 
         L.control.layers(null, {
             "AIS Trails": aisTrailLayer
@@ -609,7 +1250,7 @@
 
         const toggleButtons = document.querySelectorAll(`[data-map-layer]`);
         toggleButtons.forEach((button) => {
-            button.addEventListener("click", () => {
+            button.addEventListener("click", async () => {
                 const layerKey = button.getAttribute("data-map-layer");
                 if (!layerKey || !overlays[layerKey]) {
                     return;
@@ -652,9 +1293,384 @@
             currentSignal = null;
         });
 
+        vesselCameraModalEl?.addEventListener("shown.bs.modal", () => {
+            const isMapFs = document.fullscreenElement === mapPanel || document.webkitFullscreenElement === mapPanel;
+            if (isMapFs) {
+                const backdrop = document.querySelector(".modal-backdrop");
+                if (backdrop && mapPanel) {
+                    mapPanel.appendChild(backdrop);
+                }
+            }
+        });
+
+        const btnToggleWeatherCloud = document.getElementById("btnToggleWeatherCloud");
+        let fleetWeatherTimer = null;
+
+        const fetchFleetWeather = async () => {
+            if (!showCloudOverlay || signals.length === 0) return;
+            
+            const coords = signals.filter(s => typeof s.latitude === "number" && typeof s.longitude === "number");
+            if (coords.length === 0) return;
+            
+            const lats = coords.map(s => s.latitude.toFixed(4)).join(",");
+            const lngs = coords.map(s => s.longitude.toFixed(4)).join(",");
+            
+            try {
+                const res = await fetch(`${openMeteoApi}?latitude=${lats}&longitude=${lngs}&current=cloud_cover,precipitation,wind_speed_10m`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const results = Array.isArray(data) ? data : [data];
+                    results.forEach((r, idx) => {
+                        if (r && r.current) {
+                            const ship = coords[idx];
+                            fleetWeatherMap[ship.deviceId || ship.name] = r.current;
+                        }
+                    });
+                    
+                    // Refresh marker UI without recreating the map
+                    vesselLayer.clearLayers();
+                    aisTrailLayer.clearLayers();
+                    vesselMarkers.length = 0;
+                    
+                    signals.forEach((signal) => {
+                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
+                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
+
+                        const devId = signal.deviceId || "";
+                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
+
+                        const signalObject = {
+                            name: signal.unitName || signal.name || "Vessel Unit",
+                            status: signal.status || "online",
+                            speedLabel: signal.speedLabel || "-",
+                            heading: signal.heading || "-",
+                            icon: signal.icon || "ship",
+                            cameraUrl: cameraUrl,
+                            deviceId: devId,
+                            unitCode: signal.unitCode || "",
+                            unitName: signal.unitName || signal.name || "",
+                            unitDetail: signal.unitDetail || "",
+                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
+                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
+                            rawLatitude: signal.rawLatitude || "",
+                            rawLongitude: signal.rawLongitude || "",
+                            decimalLatitude: signal.decimalLatitude || "",
+                            decimalLongitude: signal.decimalLongitude || "",
+                            latitude: signal.latitude,
+                            longitude: signal.longitude,
+                            telemetry: signal.telemetry || [],
+                            trail: signal.trail || []
+                        };
+
+                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
+                        marker.on("click", () => openVesselCameraModal(signalObject));
+
+                        if (Array.isArray(signal.trail) && signal.trail.length > 1) {
+                            const trailPoints = signal.trail
+                                .filter((point) => typeof point.lat === "number" && typeof point.lng === "number")
+                                .map((point) => [point.lat, point.lng]);
+
+                            if (trailPoints.length > 1) {
+                                L.polyline(trailPoints, {
+                                    color: signal.status === "alert" ? "#ff6f5e" : signal.status === "warning" ? "#ffb84d" : "#2ecf86",
+                                    weight: 3,
+                                    opacity: 0.78,
+                                    dashArray: "8 10",
+                                    lineCap: "round",
+                                    lineJoin: "round"
+                                }).addTo(aisTrailLayer);
+                            }
+                        }
+
+                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    });
+                    
+                    const updateVessels = () => {
+                        vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
+                    };
+                    updateVessels();
+                    
+                    if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
+                }
+            } catch (e) {
+                console.warn("Failed to fetch fleet weather", e);
+            }
+        };
+
+        const fetchFleetMarine = async () => {
+            if (!showMarineOverlay || signals.length === 0) return;
+            
+            const coords = signals.filter(s => typeof s.latitude === "number" && typeof s.longitude === "number");
+            if (coords.length === 0) return;
+            
+            const lats = coords.map(s => s.latitude.toFixed(4)).join(",");
+            const lngs = coords.map(s => s.longitude.toFixed(4)).join(",");
+            
+            try {
+                const res = await fetch(`/api/weather-proxy/marine?latitude=${lats}&longitude=${lngs}&current=wave_height,wave_direction`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const results = Array.isArray(data) ? data : [data];
+                    results.forEach((r, idx) => {
+                        if (r && r.current) {
+                            const ship = coords[idx];
+                            fleetMarineMap[ship.deviceId || ship.name] = r.current;
+                        }
+                    });
+                    
+                    vesselLayer.clearLayers();
+                    aisTrailLayer.clearLayers();
+                    vesselMarkers.length = 0;
+                    
+                    signals.forEach((signal) => {
+                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
+                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
+                        
+                        const marker = buildIcon(signal);
+                        marker.on("click", () => handleSignalClick(signal));
+                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    });
+                    
+                    const updateVessels = () => vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
+                    updateVessels();
+                    if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
+                }
+            } catch (e) {
+                console.warn("Failed to fetch fleet marine", e);
+            }
+        };
+
+        if (btnToggleWeatherCloud) {
+            btnToggleWeatherCloud.addEventListener("click", () => {
+                showCloudOverlay = !showCloudOverlay;
+                btnToggleWeatherCloud.classList.toggle("active", showCloudOverlay);
+                
+                if (showCloudOverlay) {
+                    btnToggleWeatherCloud.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memuat...';
+                    fetchFleetWeather().then(() => {
+                        btnToggleWeatherCloud.innerHTML = '<i class="bi bi-cloud-sun-fill"></i> Cuaca (Awan)';
+                    });
+                    fleetWeatherTimer = setInterval(fetchFleetWeather, 5 * 60 * 1000); // 5 mins
+                } else {
+                    btnToggleWeatherCloud.innerHTML = '<i class="bi bi-cloud-sun"></i> Cuaca (Awan)';
+                    if (fleetWeatherTimer) clearInterval(fleetWeatherTimer);
+                    fleetWeatherMap = {}; 
+                    
+                    vesselLayer.clearLayers();
+                    aisTrailLayer.clearLayers();
+                    vesselMarkers.length = 0;
+                    signals.forEach((signal) => {
+                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
+                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
+                        const marker = buildIcon(signal);
+                        marker.on("click", () => handleSignalClick(signal));
+                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    });
+                    vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
+                    if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
+                }
+            });
+        }
+
+        const btnToggleMarineWave = document.getElementById("btnToggleMarineWave");
+        if (btnToggleMarineWave) {
+            btnToggleMarineWave.addEventListener("click", () => {
+                showMarineOverlay = !showMarineOverlay;
+                btnToggleMarineWave.classList.toggle("active", showMarineOverlay);
+                
+                if (showMarineOverlay) {
+                    btnToggleMarineWave.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memuat...';
+                    fetchFleetMarine().then(() => {
+                        btnToggleMarineWave.innerHTML = '<i class="bi bi-water"></i> Gelombang';
+                    });
+                    fleetMarineTimer = setInterval(fetchFleetMarine, 5 * 60 * 1000);
+                } else {
+                    btnToggleMarineWave.innerHTML = '<i class="bi bi-water"></i> Gelombang';
+                    if (fleetMarineTimer) clearInterval(fleetMarineTimer);
+                    fleetMarineMap = {}; 
+                    
+                    vesselLayer.clearLayers();
+                    aisTrailLayer.clearLayers();
+                    vesselMarkers.length = 0;
+                    signals.forEach((signal) => {
+                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
+                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
+                        const marker = buildIcon(signal);
+                        marker.on("click", () => handleSignalClick(signal));
+                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    });
+                    vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
+                    if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
+                }
+            });
+        }
+
+        // Fullscreen Toggle Handlers
+        const btnMapFullscreen = document.getElementById("btnToggleMapFullscreen");
+
+        if (btnMapFullscreen && mapPanel) {
+            const toggleMapFullscreen = () => {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (mapPanel.requestFullscreen) {
+                        mapPanel.requestFullscreen();
+                    } else if (mapPanel.webkitRequestFullscreen) {
+                        mapPanel.webkitRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            };
+
+            btnMapFullscreen.addEventListener("click", toggleMapFullscreen);
+
+            const handleFullscreenChange = () => {
+                const isMapFs = document.fullscreenElement === mapPanel || document.webkitFullscreenElement === mapPanel;
+                if (isMapFs) {
+                    btnMapFullscreen.classList.add("active");
+                    btnMapFullscreen.innerHTML = '<i class="bi bi-fullscreen-exit"></i> Keluar Fullscreen';
+                    mapPanel.classList.add("is-fullscreen");
+                    
+                    if (vesselCameraModalEl && document.body.contains(vesselCameraModalEl)) {
+                        mapPanel.appendChild(vesselCameraModalEl);
+                    }
+
+                    const backdrop = document.querySelector(".modal-backdrop");
+                    if (backdrop && document.body.contains(backdrop)) {
+                        mapPanel.appendChild(backdrop);
+                    }
+                } else {
+                    btnMapFullscreen.classList.remove("active");
+                    btnMapFullscreen.innerHTML = '<i class="bi bi-arrows-fullscreen"></i> Fullscreen';
+                    mapPanel.classList.remove("is-fullscreen");
+                    
+                    if (vesselCameraModalEl && mapPanel.contains(vesselCameraModalEl)) {
+                        document.body.appendChild(vesselCameraModalEl);
+                    }
+                    
+                    const backdrop = document.querySelector(".modal-backdrop");
+                    if (backdrop && mapPanel.contains(backdrop)) {
+                        document.body.appendChild(backdrop);
+                    }
+                }
+                setTimeout(() => {
+                    if (window.seaWayMapInstance) {
+                        window.seaWayMapInstance.invalidateSize();
+                    }
+                }, 200);
+            };
+
+            document.addEventListener("fullscreenchange", handleFullscreenChange);
+            document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+        }
+
+        const btnAppFullscreen = document.getElementById("btnToggleAppFullscreen");
+        if (btnAppFullscreen) {
+            btnAppFullscreen.addEventListener("click", () => {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        document.documentElement.webkitRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            });
+        }
+
+        const runSmartAlertScanner = () => {
+            let alertCount = 0;
+            const alertList = document.getElementById("smartAlertList");
+            const alertBadge = document.getElementById("smartAlertBadge");
+            const alertEmpty = document.getElementById("smartAlertEmpty");
+            const toastContainer = document.getElementById("smartAlertToastContainer");
+            if (!alertList || !toastContainer) return;
+            
+            const items = alertList.querySelectorAll("li:not(.dropdown-header):not(:has(#smartAlertEmpty))");
+            items.forEach(item => item.remove());
+
+            signals.forEach(signal => {
+                let isAlert = false;
+                let alertMessage = "";
+                const speed = parseFloat(signal.speedLabel || "0");
+                const status = (signal.status || "online").toLowerCase();
+                const shipName = signal.unitName || signal.unitCode || signal.name || "Unknown";
+
+                if (status === "offline") {
+                    isAlert = true;
+                    alertMessage = `Kapal kehilangan sinyal komunikasi.`;
+                } else if (speed > 15) {
+                    isAlert = true;
+                    alertMessage = `Kecepatan melebihi batas (Overspeed: ${speed} knots).`;
+                } else if (status === "alert") {
+                    isAlert = true;
+                    alertMessage = `Terdapat peringatan sistem navigasi.`;
+                }
+
+                if (isAlert) {
+                    alertCount++;
+                    const li = document.createElement("li");
+                    li.innerHTML = `<a class="dropdown-item py-2 border-bottom border-secondary border-opacity-25" href="#" style="white-space: normal;">
+                                        <div class="fw-bold text-danger mb-1" style="font-size: 0.8rem;"><i class="bi bi-exclamation-triangle-fill me-1"></i> ${escapeHtml(shipName)}</div>
+                                        <div class="small text-muted" style="font-size: 0.75rem; line-height: 1.2;">${alertMessage}</div>
+                                    </a>`;
+                    alertList.appendChild(li);
+
+                    if (alertCount === 1 && !window._smartAlertToastShown) {
+                        window._smartAlertToastShown = true;
+                        const toastId = "toast_" + Date.now();
+                        const toastHtml = `
+                            <div id="${toastId}" class="toast bg-danger text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+                                <div class="toast-header bg-danger text-white border-white border-opacity-25">
+                                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                                    <strong class="me-auto" style="letter-spacing: 0.5px;">SMART ALERT</strong>
+                                    <small>Baru saja</small>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                                </div>
+                                <div class="toast-body">
+                                    <div class="fw-bold mb-1">${escapeHtml(shipName)}</div>
+                                    <div style="font-size: 0.85rem;">${alertMessage}</div>
+                                </div>
+                            </div>
+                        `;
+                        toastContainer.insertAdjacentHTML("beforeend", toastHtml);
+                        const toastEl = document.getElementById(toastId);
+                        const toast = new window.bootstrap.Toast(toastEl, { delay: 15000 });
+                        toast.show();
+                        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+                    }
+                }
+            });
+
+            if (alertCount > 0) {
+                if (alertEmpty) alertEmpty.parentElement.style.display = 'none';
+                if (alertBadge) {
+                    alertBadge.style.display = 'block';
+                    alertBadge.innerText = alertCount;
+                }
+            } else {
+                if (alertEmpty) alertEmpty.parentElement.style.display = 'block';
+                if (alertBadge) alertBadge.style.display = 'none';
+            }
+        };
+
+        setTimeout(runSmartAlertScanner, 1500);
+        setInterval(runSmartAlertScanner, 30000);
+
         renderVessels();
+        loadCurrentWeather(lat, lng);
         fetchLiveUnit();
         window.setInterval(fetchLiveUnit, 5000);
     };
 })();
+
+
 

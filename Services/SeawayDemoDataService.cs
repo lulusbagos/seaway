@@ -1,25 +1,26 @@
+using SeaWay.Data.Entities;
 using SeaWay.Models.ViewModels;
 
 namespace SeaWay.Services;
 
 public class SeawayDemoDataService
 {
-    public DashboardViewModel GetDashboard(UnitStatusSnapshotViewModel? liveUnit = null)
+    public DashboardViewModel GetDashboard(UnitStatusSnapshotViewModel? liveUnit = null, List<UnitMaster>? allUnits = null)
     {
         liveUnit ??= new UnitStatusSnapshotViewModel
         {
-            DeviceId = "221083241090",
-            UnitCode = "RD4003",
-            VehicleId = "RD4003",
-            Name = "RD4003 - SeaWay Live Unit",
-            UnitName = "RD4003 - SeaWay Live Unit",
+            DeviceId = "488260671512",
+            UnitCode = "Ganesha BS 16",
+            VehicleId = "Ganesha BS 16",
+            Name = "Ganesha BS 16",
+            UnitName = "Ganesha BS 16",
             UnitDetail = "Live GPS/AIS unit untuk monitoring operasional SeaWay.",
             Status = "online",
             IsOnline = true,
             Network = "NET 3",
             Gateway = "G1",
             SessionToken = "7725f0b6e9404a5d86bb6ccab539db9e",
-            GpsStatusUrl = "http://103.245.39.218:8080/StandardApiAction_getDeviceStatus.action",
+            GpsStatusUrl = "https://lenzguard.com/StandardApiAction_getDeviceStatus.action",
             SpeedLabel = "28.0 Knot",
             Heading = "358 deg",
             Latitude = 1.009485,
@@ -28,7 +29,7 @@ public class SeawayDemoDataService
             LastSeen = DateTime.UtcNow.ToString("dd MMM HH:mm"),
             UnitKind = "Merchant Vessel",
             Icon = "ship",
-            CameraUrl = "/808gps/open/player/video.html?lang=en&devIdno=353075846831&account=LenzguardUnggul&password=UDULENZGUARD123",
+            CameraUrl = "https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=488260671512&account=GLJ01&password=123456",
             LocationStatus = "lokasi tidak sesuai",
             LocationNote = "Snapshot fallback digunakan karena data lokasi belum tersedia.",
             RawLatitude = "1027590",
@@ -58,11 +59,51 @@ public class SeawayDemoDataService
             Trail = []
         };
 
+        var isKaliorangMatch = string.Equals(liveUnit.LocationStatus, "lokasi sesuai", StringComparison.OrdinalIgnoreCase);
+        var kaliorangDesc = isKaliorangMatch
+            ? $"Unit {liveUnit.UnitCode} terverifikasi aktif di dalam koridor operasional Kaliorang ({liveUnit.PositionText})."
+            : $"Unit {liveUnit.UnitCode} terdeteksi di luar zona Kaliorang ({liveUnit.LocationNote}).";
+
+        var networkDesc = $"Device ID {liveUnit.DeviceId} terhubung via {liveUnit.Network}. Ping terakhir: {liveUnit.LastSeen}.";
+        var navDesc = $"Kecepatan saat ini: {liveUnit.SpeedLabel} | Arah: {liveUnit.Heading}. Status: {liveUnit.Status.ToUpperInvariant()}.";
+
+        var activeVesselsList = new List<VesselViewModel>();
+        if (allUnits is { Count: > 0 })
+        {
+            foreach (var u in allUnits)
+            {
+                var isLiveDevice = string.Equals(u.DeviceIdNo, liveUnit.DeviceId, StringComparison.OrdinalIgnoreCase);
+                activeVesselsList.Add(new VesselViewModel
+                {
+                    Name = u.UnitName,
+                    Imo = u.DeviceIdNo,
+                    Status = isLiveDevice ? (liveUnit.IsOnline ? "Live" : "Alert") : (u.IsActive ? "Live" : "Inactive"),
+                    Destination = isLiveDevice ? liveUnit.PositionText : (u.UnitDetail ?? "Standby"),
+                    Speed = isLiveDevice ? liveUnit.SpeedLabel : "0.0 Knot",
+                    Heading = isLiveDevice ? liveUnit.Heading : "0 deg",
+                    LastUpdate = isLiveDevice ? liveUnit.LastSeen : "Realtime"
+                });
+            }
+        }
+        else
+        {
+            activeVesselsList.Add(new VesselViewModel
+            {
+                Name = liveUnit.Name,
+                Imo = liveUnit.DeviceId,
+                Status = liveUnit.Status.Equals("online", StringComparison.OrdinalIgnoreCase) ? "Live" : "Alert",
+                Destination = liveUnit.PositionText,
+                Speed = liveUnit.SpeedLabel,
+                Heading = liveUnit.Heading,
+                LastUpdate = liveUnit.LastSeen
+            });
+        }
+
         return new DashboardViewModel
         {
             LiveUnit = liveUnit,
-            MapCenterLatitude = -2.55,
-            MapCenterLongitude = 118.65,
+            MapCenterLatitude = liveUnit.Latitude != 0 ? liveUnit.Latitude : -2.55,
+            MapCenterLongitude = liveUnit.Longitude != 0 ? liveUnit.Longitude : 118.65,
             MapZoom = 6,
             Kpis =
             [
@@ -71,22 +112,36 @@ public class SeawayDemoDataService
                 new() { Label = "Gateway", Value = liveUnit.Gateway, Change = liveUnit.PositionText, ChangeTone = "positive", Icon = "bi-bounding-box" },
                 new() { Label = "Speed", Value = liveUnit.SpeedLabel, Change = liveUnit.Heading, ChangeTone = "positive", Icon = "bi-speedometer2" }
             ],
-            MapSignals =
-            [],
+            MapSignals = [],
             Alerts =
             [
                 new() { Severity = "info", Title = "Live unit synced", VesselName = liveUnit.VehicleId, Description = $"Position {liveUnit.PositionText} from API snapshot.", OccurredAt = liveUnit.LastSeen },
                 new() { Severity = "warning", Title = "Track history active", VesselName = liveUnit.VehicleId, Description = "Playback trail ready for monitoring and replay.", OccurredAt = "Realtime" }
             ],
-            ActiveVessels =
-            [
-                new() { Name = liveUnit.Name, Imo = liveUnit.DeviceId, Status = liveUnit.Status.Equals("online", StringComparison.OrdinalIgnoreCase) ? "Live" : "Alert", Destination = liveUnit.PositionText, Speed = liveUnit.SpeedLabel, Heading = liveUnit.Heading, LastUpdate = liveUnit.LastSeen }
-            ],
+            ActiveVessels = activeVesselsList,
             Geofences =
             [
-                new() { Name = "Makassar Pilot Zone", State = "Live", Description = "Zona approach kapal masuk pilot boarding.", VesselCount = "8 kapal" },
-                new() { Name = "Coal Anchorage East", State = "Watch", Description = "Dipantau untuk dwell time dan antrian bongkar.", VesselCount = "5 kapal" },
-                new() { Name = "Restricted Energy Corridor", State = "Alert", Description = "Tidak boleh ada slow drift tanpa izin supervisor.", VesselCount = "1 kapal" }
+                new()
+                {
+                    Name = "Zona Operasional Kaliorang",
+                    State = isKaliorangMatch ? "Live" : "Watch",
+                    Description = kaliorangDesc,
+                    VesselCount = isKaliorangMatch ? "1 unit di lokasi" : "Di luar area"
+                },
+                new()
+                {
+                    Name = "Status Telemetri Jaringan GPS",
+                    State = liveUnit.IsOnline ? "Live" : "Alert",
+                    Description = networkDesc,
+                    VesselCount = liveUnit.Network
+                },
+                new()
+                {
+                    Name = "Pengawasan Navigasi & Kecepatan",
+                    State = string.Equals(liveUnit.Status, "online", StringComparison.OrdinalIgnoreCase) ? "Live" : "Watch",
+                    Description = navDesc,
+                    VesselCount = liveUnit.SpeedLabel
+                }
             ],
             Weather =
             [
@@ -97,9 +152,9 @@ public class SeawayDemoDataService
             ],
             Timeline =
             [
-                new() { Time = "08:46", Title = "Snapshot synced", Description = $"Last position {liveUnit.PositionText} saved from device {liveUnit.DeviceId}." },
-                new() { Time = "08:30", Title = "Track playback ready", Description = "API unit history is available for replay and route review." },
-                new() { Time = "07:52", Title = "Realtime poll active", Description = "Dashboard refreshes the device status every 5 seconds." }
+                new() { Time = DateTime.UtcNow.ToString("HH:mm"), Title = "Snapshot synced", Description = $"Koordinat {liveUnit.PositionText} diperbarui dari device {liveUnit.DeviceId}." },
+                new() { Time = "08:30", Title = "Track playback ready", Description = "Histori rute pergerakan unit siap di-replay." },
+                new() { Time = "07:52", Title = "Realtime poll active", Description = "Monitoring otomatis memperbarui status setiap 5 detik." }
             ]
         };
     }

@@ -7,7 +7,7 @@ namespace SeaWay.Controllers;
 [Authorize]
 public class CameraProxyController(IHttpClientFactory httpClientFactory) : Controller
 {
-    private const string CameraOrigin = "http://103.245.39.218:8080";
+    private const string CameraOrigin = "https://lenzguard.com";
     private static readonly HashSet<string> HopByHopHeaders =
     [
         "connection",
@@ -17,7 +17,9 @@ public class CameraProxyController(IHttpClientFactory httpClientFactory) : Contr
         "te",
         "trailers",
         "transfer-encoding",
-        "upgrade"
+        "upgrade",
+        "content-encoding",
+        "content-length"
     ];
 
     private static readonly HashSet<string> BlockedResponseHeaders =
@@ -162,7 +164,9 @@ public class CameraProxyController(IHttpClientFactory httpClientFactory) : Contr
 
     private static string RewriteCameraLinks(string content)
     {
-        var rewritten = content.Replace("http://103.245.39.218:8080", string.Empty, StringComparison.OrdinalIgnoreCase)
+        var rewritten = content.Replace("https://lenzguard.com", string.Empty, StringComparison.OrdinalIgnoreCase)
+                               .Replace("http://lenzguard.com", string.Empty, StringComparison.OrdinalIgnoreCase)
+                               .Replace("http://103.245.39.218:8080", string.Empty, StringComparison.OrdinalIgnoreCase)
                                .Replace("https://103.245.39.218:8080", string.Empty, StringComparison.OrdinalIgnoreCase);
 
         rewritten = rewritten.Replace("src=\"/808gps/", "src=\"/808gps/", StringComparison.OrdinalIgnoreCase);

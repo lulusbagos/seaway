@@ -10,7 +10,7 @@
     <title>Login - SeaWay</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600;700;800&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -19,6 +19,10 @@
 <body class="auth-page">
     <div class="auth-shell">
         <section class="auth-hero">
+            <video class="auth-hero-video" autoplay muted loop playsinline aria-hidden="true">
+                <source src="~/video/xx.mp4" type="video/mp4" />
+            </video>
+            <div class="auth-hero-video-overlay" aria-hidden="true"></div>
             <div class="auth-scanline" aria-hidden="true"></div>
             <div class="auth-orb auth-orb-a"></div>
             <div class="auth-orb auth-orb-b"></div>
@@ -43,11 +47,6 @@
         </section>
 
         <section class="auth-panel">
-            <div class="auth-panel-metrics" aria-hidden="true">
-                <span>UTC+08</span>
-                <span>DB Sync</span>
-                <span>Role Bound</span>
-            </div>
             <div class="auth-panel-grid" aria-hidden="true"></div>
             <div class="auth-loading-overlay" aria-hidden="true">
                 <div class="auth-loading-core">
@@ -59,8 +58,13 @@
             </div>
             <div class="auth-card">
                 <div class="auth-card-header">
-                    <div class="panel-eyebrow">Direct DB Access</div>
-                    <h2>SeaWay Control Portal</h2>
+                    <div class="auth-card-header-copy">
+                        <img class="auth-card-logo" src="~/logo/logo seaway teks biru.png" alt="SeaWay logo perusahaan" asp-append-version="true" />
+                        <div class="auth-card-header-text">
+                            <div class="panel-eyebrow">Direct DB Access</div>
+                            <h2>SeaWay Control Portal</h2>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="auth-card-status-row" aria-hidden="true">

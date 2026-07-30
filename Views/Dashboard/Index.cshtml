@@ -2,154 +2,101 @@
 @model SeaWay.Models.ViewModels.DashboardViewModel
 
 <div class="page-grid">
-    <section class="kpi-grid">
-        @foreach (var kpi in Model.Kpis)
-        {
-            <article class="kpi-card">
-                <div class="kpi-top">
-                    <div>
-                        <div class="kpi-label">@kpi.Label</div>
-                        <div class="kpi-value">@kpi.Value</div>
-                    </div>
-                    <div class="kpi-icon">
-                        <i class="bi @kpi.Icon"></i>
-                    </div>
-                </div>
-                <div class="kpi-meta @kpi.ChangeTone">
-                    <i class="bi bi-arrow-up-right"></i>
-                    <span>@kpi.Change</span>
-                </div>
-            </article>
-        }
-    </section>
-
-    <section class="content-grid">
-        <article class="card-panel map-panel">
-            <div class="panel-header">
-                <div>
-                    <div class="panel-eyebrow">Live Map</div>
-                    <h2 class="panel-title">Makassar Strait Operational View</h2>
-                    <p class="panel-copy">OpenSeaMap live layer untuk monitoring GPS/AIS kapal, seamark, dan kontrol koridor pelayaran.</p>
-                </div>
-                <div class="panel-action">OpenSeaMap live</div>
-            </div>
-
+    <article class="card-panel map-panel p-0" style="height: 65vh; min-height: 600px;">
             <div class="map-surface map-live-surface">
                 <div id="seaWayMap" class="map-canvas" aria-label="OpenSeaMap live map"></div>
-                <div class="map-overlay map-overlay-top">
-                    <div class="map-source-row">
-                        <span class="map-source-chip"><span class="brand-pulse"></span> OpenSeaMap Live</span>
-                        <a class="map-source-link" href="https://map.openseamap.org" target="_blank" rel="noreferrer">map.openseamap.org</a>
+                <div class="map-overlay map-overlay-top-left">
+                    <div class="map-weather-compact">
+                        <span class="map-weather-compact-badge">
+                            <span class="brand-pulse"></span> Cuaca Navigasi
+                        </span>
+                        <span class="map-weather-compact-divider"></span>
+                        <div class="map-weather-compact-item">
+                            <span>Angin:</span>
+                            <strong id="mapWeatherWind">-</strong>
+                            <span class="map-weather-arrow" id="mapWeatherWindDirectionArrow"><i class="bi bi-arrow-up"></i></span>
+                            <span id="mapWeatherWindDirection">-</span>
+                            <span id="mapWeatherWindDirectionDetail" class="d-none"></span>
+                        </div>
+                        <span class="map-weather-compact-divider"></span>
+                        <div class="map-weather-compact-item">
+                            <span>Hujan:</span>
+                            <strong id="mapWeatherRain">-</strong>
+                        </div>
+                        <span class="map-weather-compact-divider"></span>
+                        <div class="map-weather-compact-item">
+                            <span class="map-weather-cloud-dot" id="mapWeatherCloudDot"></span>
+                            <span>Awan:</span>
+                            <strong id="mapWeatherCloud">-</strong>
+                        </div>
+                        <span class="map-weather-compact-divider"></span>
+                        <div class="map-weather-compact-item">
+                            <span>Ombak:</span>
+                            <strong id="mapWeatherWave">-</strong>
+                        </div>
                     </div>
-                    <div class="map-source-copy">OSM base + seamark overlay</div>
-                    <div class="map-layer-toolbar" aria-label="Map options">
-                        <button class="map-layer-chip active" type="button" data-map-layer="ais">AIS Trails</button>
-                    </div>
-                    <div class="map-layer-toolbar map-filter-toolbar" aria-label="Vessel filters">
-                        <button class="map-layer-chip active" type="button" data-ship-filter="all">All</button>
-                        <button class="map-layer-chip" type="button" data-ship-filter="online">Live</button>
-                        <button class="map-layer-chip" type="button" data-ship-filter="warning">Watch</button>
-                        <button class="map-layer-chip" type="button" data-ship-filter="alert">Alert</button>
-                    </div>
-                </div>
-                <div class="map-overlay map-overlay-bottom">
-                    <div class="map-legend">
-                        <span class="map-legend-item live"><span class="map-legend-dot"></span> Live vessel</span>
-                        <span class="map-legend-item muted">Makassar Strait</span>
-                        <span class="map-legend-item muted">AIS + GPS ready</span>
-                    </div>
-                </div>
-            </div>
 
-            <div class="map-footer">
-                <div class="mini-stat">
-                    <div class="mini-stat-label">Live Track</div>
-                    <div class="mini-stat-value">Vessel trail active</div>
+                    <div class="map-controls-row">
+                        <div class="map-filter-group" aria-label="Filter Kapal">
+                            <button class="map-chip active" type="button" data-ship-filter="all">Semua</button>
+                            <button class="map-chip" type="button" data-ship-filter="online">Aktif</button>
+                            <button class="map-chip" type="button" data-ship-filter="warning">Pengawasan</button>
+                            <button class="map-chip" type="button" data-ship-filter="alert">Peringatan</button>
+                        </div>
+                        <div class="map-layer-group">
+                            <div class="dropdown d-inline-block">
+                                <button class="map-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah Tema Peta">
+                                    <i class="bi bi-palette"></i> Tema
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark shadow-sm" style="min-width: 150px; font-size: 0.85rem;">
+                                    <li><a class="dropdown-item map-theme-opt" href="#" data-theme="standard"><i class="bi bi-sun me-2"></i>Terang</a></li>
+                                    <li><a class="dropdown-item map-theme-opt" href="#" data-theme="dark"><i class="bi bi-moon-stars me-2"></i>Gelap</a></li>
+                                    <li><a class="dropdown-item map-theme-opt" href="#" data-theme="satellite"><i class="bi bi-globe me-2"></i>Satelit</a></li>
+                                </ul>
+                            </div>
+                            <button class="map-chip map-chip-toggle active" type="button" data-map-layer="ais">
+                                <i class="bi bi-bezier2"></i> Jalur AIS
+                            </button>
+                            <button class="map-chip map-chip-toggle active" type="button" data-map-layer="history">
+                                <i class="bi bi-clock-history"></i> Histori Track
+                            </button>
+                            <button class="map-chip map-chip-toggle" type="button" id="btnToggleWeatherCloud">
+                                <i class="bi bi-cloud-sun"></i> Cuaca (Awan)
+                            </button>
+                            <button class="map-chip map-chip-toggle" type="button" id="btnToggleMarineWave">
+                                <i class="bi bi-water"></i> Gelombang
+                            </button>
+                            <button class="map-chip map-chip-action" type="button" id="btnToggleMapFullscreen" title="Mode Layar Penuh Peta">
+                                <i class="bi bi-arrows-fullscreen"></i> Fullscreen
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="mini-stat">
-                    <div class="mini-stat-label">Coverage</div>
-                    <div class="mini-stat-value">GPS + AIS ready</div>
-                </div>
-                <div class="mini-stat">
-                    <div class="mini-stat-label">View Mode</div>
-                    <div class="mini-stat-value">Operational chart</div>
+
+                <div class="map-overlay map-overlay-bottom-right">
+                    <div class="map-legend-bar" style="display: flex; gap: 15px; align-items: center; background: rgba(15, 23, 42, 0.85); padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;">
+                        <span class="map-legend-item" style="color: #f8fafc; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                            <img src="/icon/1.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Berlayar"> Berlayar
+                        </span>
+                        <span class="map-legend-item" style="color: #cbd5e1; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                            <img src="/icon/4.png" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;" alt="Berhenti"> Berhenti / Offline
+                        </span>
+                        <span class="map-legend-item" style="color: #f59e0b; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                            <img src="/icon/2.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Pengawasan"> Pengawasan
+                        </span>
+                        <span class="map-legend-item" style="color: #ef4444; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                            <img src="/icon/3.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Peringatan"> Peringatan
+                        </span>
+                    </div>
                 </div>
             </div>
         </article>
 
-        <div class="page-grid">
-            <article class="card-panel glass">
-                <div class="panel-header">
-                    <div>
-                        <div class="panel-eyebrow">Alert Center</div>
-                        <h2 class="panel-title">Prioritas penanganan</h2>
-                    </div>
-                    <div class="panel-action">5 active</div>
-                </div>
-                <div class="alert-list">
-                    @foreach (var alert in Model.Alerts)
-                    {
-                        <div class="alert-item">
-                            <div class="d-flex gap-3">
-                                <div class="alert-dot @alert.Severity"></div>
-                                <div>
-                                    <div class="alert-title">@alert.Title</div>
-                                    <div class="alert-copy">@alert.VesselName &middot; @alert.Description</div>
-                                </div>
-                            </div>
-                            <div class="badge-soft @(alert.Severity == "critical" ? "alert" : alert.Severity == "warning" ? "warn" : "live")">@alert.OccurredAt</div>
-                        </div>
-                    }
-                </div>
-            </article>
-
-            <article class="card-panel glass">
-                <div class="panel-header">
-                    <div>
-                        <div class="panel-eyebrow">Weather Snapshot</div>
-                        <h2 class="panel-title">Cuaca dan kondisi laut</h2>
-                    </div>
-                </div>
-                <div class="weather-grid">
-                    @foreach (var weather in Model.Weather)
-                    {
-                        <div class="weather-card">
-                            <div class="weather-label">@weather.Label</div>
-                            <div class="weather-value">@weather.Value</div>
-                        </div>
-                    }
-                </div>
-            </article>
-
-            <article class="card-panel glass">
-                <div class="panel-header">
-                    <div>
-                        <div class="panel-eyebrow">Event Feed</div>
-                        <h2 class="panel-title">Timeline operasional</h2>
-                    </div>
-                </div>
-                <div class="timeline">
-                    @foreach (var item in Model.Timeline)
-                    {
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-time">@item.Time</div>
-                            <div class="timeline-title">@item.Title</div>
-                            <div class="stack-item-copy">@item.Description</div>
-                        </div>
-                    }
-                </div>
-            </article>
-        </div>
-    </section>
-
-    <section class="split-grid">
-        <article class="card-panel">
-            <div class="panel-header">
+    <article class="card-panel">
+            <div class="panel-header mb-3">
                 <div>
                     <div class="panel-eyebrow">Fleet Pulse</div>
                     <h2 class="panel-title">Armada aktif</h2>
-                    <p class="panel-copy">Tabel ini siap dijadikan list vessel dengan filter, sort, dan detail histori posisi dari PostgreSQL.</p>
                 </div>
                 <div class="panel-action">24 live</div>
             </div>
@@ -171,8 +118,17 @@
 
                         <div class="fleet-columns">
                             <div>
-                                <div class="fleet-col-label">Status</div>
-                                <div class="fleet-col-value">@vessel.Status</div>
+                                <div class="fleet-col-label">Status Kapal</div>
+                                <div class="fleet-col-value">
+                                    @if (fleetStatus == "online" || fleetStatus == "warning")
+                                    {
+                                        <span style="display: inline-block; background: var(--success); color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;">AKTIF &middot; @vessel.Status</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="display: inline-block; background: var(--accent-danger); color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;">NON-AKTIF &middot; @vessel.Status</span>
+                                    }
+                                </div>
                             </div>
                             <div>
                                 <div class="fleet-col-label">Speed</div>
@@ -192,118 +148,84 @@
             </div>
         </article>
 
-        <article class="card-panel">
-            <div class="panel-header">
-                <div>
-                    <div class="panel-eyebrow">Geofence</div>
-                    <h2 class="panel-title">Area pengawasan</h2>
-                    <p class="panel-copy">Disiapkan untuk status masuk-keluar zona, approval, dan aturan restricted area.</p>
-                </div>
-            </div>
-            <div class="page-grid">
-                @foreach (var zone in Model.Geofences)
-                {
-                    var zoneTone = zone.State == "Alert" ? "alert" : zone.State == "Watch" ? "warn" : "live";
-                    <div class="geofence-item">
-                        <div>
-                            <div class="stack-item-title">@zone.Name</div>
-                            <div class="stack-item-copy">@zone.Description</div>
-                        </div>
-                        <div class="text-end">
-                            <div class="badge-soft @zoneTone">@zone.State</div>
-                            <div class="fleet-meta mt-2">@zone.VesselCount</div>
-                        </div>
-                    </div>
-                }
-            </div>
-        </article>
-    </section>
+
 
     <div class="modal fade vessel-camera-modal" id="vesselCameraModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content vessel-camera-shell">
                 <div class="vessel-camera-glow"></div>
                 <div class="modal-header vessel-camera-header">
-                    <div>
-                        <div class="panel-eyebrow">Vessel Camera Suite</div>
-                        <h2 class="vessel-camera-title" id="vesselCameraTitle">Vessel Camera Suite</h2>
-                        <p class="vessel-camera-copy" id="vesselCameraMeta">Klik kapal pada peta untuk membuka kamera live unit terkait.</p>
+                    <div class="vessel-camera-header-copy">
+                        <div class="panel-eyebrow">Konsol Kamera & Telemetri Armada</div>
+                        <h2 class="vessel-camera-title" id="vesselCameraTitle">Kamera Live & Telemetri Unit</h2>
+                        <p class="vessel-camera-copy" id="vesselCameraMeta">Konsol pemantauan kamera & telemetri real-time armada PT Pelayaran Ganesha Lautjaya.</p>
                     </div>
-                    <button type="button" class="btn-close btn-close-white vessel-camera-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="vessel-camera-header-actions">
+                        <a class="vessel-camera-action" id="vesselCameraOpenExternal" href="#" target="_blank" rel="noopener noreferrer">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            Buka Kamera Live
+                        </a>
+                        <button type="button" class="btn-close btn-close-white vessel-camera-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
                 </div>
                 <div class="modal-body vessel-camera-body">
                     <aside class="vessel-camera-summary">
                         <div class="summary-portrait">
-                            <img id="vesselCameraPortrait" src="~/image/ship.png" alt="Vessel unit" />
+                            <img id="vesselCameraPortrait" src="~/icon/1.png" alt="Vessel unit" />
                             <div class="summary-portrait-overlay">
                                 <div class="summary-portrait-chip"><span class="status-dot"></span><span id="vesselCameraUnitKind">Merchant Vessel</span></div>
-                                <div class="summary-portrait-caption">Unit visual</div>
+                                <div class="summary-portrait-caption">Visual Armada</div>
                             </div>
                         </div>
                         <div class="summary-card accent">
-                            <div class="summary-label">Playback</div>
+                            <div class="summary-label">Playback Histori Lintasan</div>
                             <div class="playback-row">
                                 <input id="vesselPlaybackSlider" class="playback-slider" type="range" min="1" max="4" value="4" step="1" />
                                 <div class="playback-meta">
                                     <span id="vesselPlaybackPoint">4 / 4</span>
-                                    <span id="vesselPlaybackTime">Latest</span>
+                                    <span id="vesselPlaybackTime">Terbaru</span>
                                 </div>
                             </div>
                         </div>
                         <div class="summary-card">
-                            <div class="summary-label">Target</div>
+                            <div class="summary-label">Nama Kapal</div>
                             <div class="summary-value" id="vesselCameraName">-</div>
                         </div>
                         <div class="summary-card">
-                            <div class="summary-label">Unit code</div>
+                            <div class="summary-label">Kode Unit & Device ID</div>
                             <div class="summary-value" id="vesselCameraUnitCode">-</div>
+                            <div class="summary-note" id="vesselCameraDeviceId">-</div>
                         </div>
                         <div class="summary-card">
-                            <div class="summary-label">Device ID</div>
-                            <div class="summary-value" id="vesselCameraDeviceId">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Unit detail</div>
+                            <div class="summary-label">Detail Operasional</div>
                             <div class="summary-note" id="vesselCameraUnitDetail">-</div>
                         </div>
                         <div class="summary-card">
-                            <div class="summary-label">Status</div>
+                            <div class="summary-label">Status & Kecepatan Navigasi</div>
                             <div class="summary-value" id="vesselCameraStatus">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Speed</div>
-                            <div class="summary-value" id="vesselCameraSpeed">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Heading</div>
-                            <div class="summary-value" id="vesselCameraHeading">-</div>
-                        </div>
-                        <div class="summary-card accent">
-                            <div class="summary-label">Live context</div>
-                            <div class="summary-value">Bridge, deck, stern, dock, port, trail</div>
-                        </div>
-                        <div class="summary-card accent">
-                            <div class="summary-label">Location status</div>
-                            <div class="summary-value summary-source" id="vesselCameraLocationStatus">-</div>
-                            <div class="summary-note" id="vesselCameraLocationNote">-</div>
-                        </div>
-                        <div class="summary-card">
-                            <div class="summary-label">Coordinates</div>
                             <div class="summary-note">
-                                Raw: <span id="vesselCameraRawCoordinates">-</span><br />
-                                Decimal: <span id="vesselCameraDecimalCoordinates">-</span>
+                                Kecepatan: <span id="vesselCameraSpeed">-</span> &middot; Haluan: <span id="vesselCameraHeading">-</span>
                             </div>
                         </div>
                         <div class="summary-card accent">
-                            <div class="summary-label">Raw telemetry</div>
-                            <div class="telemetry-grid" id="vesselCameraTelemetry"></div>
+                            <div class="summary-label">Status Geofence & Koordinat</div>
+                            <div class="summary-value summary-source" id="vesselCameraLocationStatus">-</div>
+                            <div class="summary-note mb-1" id="vesselCameraLocationNote">-</div>
+                            <div class="summary-note text-muted small">
+                                Presisi: <span id="vesselCameraDecimalCoordinates">-</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-label">Kondisi Cuaca & Ombak Lokal</div>
+                            <div class="summary-value" id="vesselCameraWeather" style="font-size: 0.85rem; line-height: 1.4;">Mengambil data cuaca...</div>
+                            <div class="summary-note mt-1" id="vesselCameraWave" style="color: #0c8f9d; font-weight: 600;">-</div>
                         </div>
                     </aside>
                     <div class="vessel-camera-stage">
                         <div class="camera-stage-toolbar">
                             <div>
-                                <div class="summary-label">4-channel console</div>
-                                <div class="camera-stage-title">Direct vessel camera feed</div>
+                                <div class="summary-label">Konsol 4-Channel</div>
+                                <div class="camera-stage-title">Feed Video Kamera Live Armada</div>
                             </div>
                             <div class="camera-stage-chips">
                                 <span class="vessel-feed-chip live">CH 01</span>
@@ -317,16 +239,45 @@
                                 id="vesselCameraFrame"
                                 class="vessel-camera-frame"
                                 title="SeaWay vessel camera console"
-                                loading="lazy"
+                                loading="eager"
                                 referrerpolicy="no-referrer"
                                 allow="autoplay; fullscreen; picture-in-picture"
                                 src="about:blank"></iframe>
+                            <div class="camera-console-state" id="vesselCameraState">
+                                <span class="camera-console-state-dot"></span>
+                                <span class="camera-console-state-text">Konsol kamera siap</span>
+                            </div>
                             <div class="camera-console-overlay">
-                                <span class="camera-console-pill live">LIVE</span>
-                                <span class="camera-console-pill">API VIDEO</span>
+                                <span class="camera-console-pill live">LIVE FEED</span>
+                                <span class="camera-console-pill">STREAM TERHUBUNG</span>
                             </div>
                         </div>
                     </div>
+                    <aside class="vessel-camera-rail">
+                        <div class="rail-card">
+                            <div class="summary-label">Sistem Stream</div>
+                            <div class="rail-stat">Feed Utama Live</div>
+                            <div class="rail-note">Sinyal video langsung dari unit armada yang dipilih.</div>
+                        </div>
+                        <div class="rail-card accent">
+                            <div class="summary-label">Aksi Cepat</div>
+                            <div class="rail-actions">
+                                <a class="rail-action" id="vesselCameraOpenExternalInline" href="#" target="_blank" rel="noopener noreferrer">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                    Buka CCTV
+                                </a>
+                                <span class="rail-chip">LIVE</span>
+                                <button type="button" class="rail-action rail-action-button" id="vesselCameraTalkbackButton">
+                                    <i class="bi bi-mic"></i>
+                                    Mic
+                                </button>
+                            </div>
+                        </div>
+                        <div class="rail-card accent">
+                            <div class="summary-label">Telemetri Sistem Armada</div>
+                            <div class="telemetry-grid telemetry-grid-rail" id="vesselCameraTelemetry"></div>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </div>
@@ -337,6 +288,77 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <style>
+        .map-overlay { z-index: 1000 !important; }
+        
+        /* Dynamic History Track Colors */
+        body[data-map-theme="standard"] .history-track-outline { stroke: #ffffff !important; }
+        body[data-map-theme="standard"] .history-track-main { stroke: #000000 !important; }
+
+        body[data-map-theme="dark"] .history-track-outline { stroke: #0f172a !important; }
+        body[data-map-theme="dark"] .history-track-main { stroke: #00f0ff !important; }
+
+        body[data-map-theme="satellite"] .history-track-outline { stroke: #000000 !important; }
+        body[data-map-theme="satellite"] .history-track-main { stroke: #ffea00 !important; }
+        
+        .fleet-table {
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+        }
+        
+        .fleet-table::-webkit-scrollbar { width: 6px; }
+        .fleet-table::-webkit-scrollbar-track { background: transparent; }
+        .fleet-table::-webkit-scrollbar-thumb { background: rgba(13, 27, 42, 0.15); border-radius: 10px; }
+        
+        .fleet-row {
+            display: flex !important;
+            flex-direction: column !important;
+            padding: 12px 16px !important;
+            border-radius: 12px !important;
+            background: rgba(255, 255, 255, 0.75) !important;
+            border: 1px solid rgba(13, 27, 42, 0.05) !important;
+            border-left: 4px solid #cbd5e1 !important;
+            box-shadow: 0 4px 12px rgba(13, 27, 42, 0.03) !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+            margin-bottom: 0 !important;
+        }
+        .fleet-row:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 24px rgba(13, 27, 42, 0.08) !important;
+            background: #ffffff !important;
+        }
+        
+        .fleet-row[data-fleet-status="online"] { border-left-color: #2ecf86 !important; }
+        .fleet-row[data-fleet-status="warning"] { border-left-color: #f59e0b !important; }
+        .fleet-row[data-fleet-status="alert"] { border-left-color: #ef4444 !important; }
+        .fleet-row[data-fleet-status="offline"] { border-left-color: #94a3b8 !important; }
+        
+        .fleet-name-block .fleet-avatar {
+            width: 34px !important;
+            height: 34px !important;
+            font-size: 0.9rem !important;
+        }
+        .fleet-name-block .fleet-name { font-size: 0.95rem !important; }
+        
+        .fleet-columns {
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 8px !important;
+            margin-top: 12px !important;
+            padding-top: 12px !important;
+            border-top: 1px dashed rgba(13, 27, 42, 0.1) !important;
+        }
+        .fleet-col-label {
+            font-size: 0.65rem !important;
+        }
+        .fleet-col-value {
+            font-size: 0.78rem !important;
+        }
+    </style>
 }
 
 @section Scripts {
@@ -385,30 +407,32 @@
             },
             signals = Model.MapSignals.Select(signal => new
             {
-                name = signal.Name,
+                name = signal.UnitName ?? signal.Name,
+                unitName = signal.UnitName ?? signal.Name,
+                unitCode = signal.UnitCode ?? signal.Name,
+                deviceId = signal.DeviceId,
+                cameraUrl = signal.CameraUrl,
                 status = signal.Status,
                 speedLabel = signal.SpeedLabel,
                 heading = signal.Heading,
                 latitude = signal.Latitude,
                 longitude = signal.Longitude,
+                locationStatus = signal.LocationStatus,
+                locationNote = signal.LocationNote,
+                rawLatitude = signal.RawLatitude,
+                rawLongitude = signal.RawLongitude,
+                decimalLatitude = signal.DecimalLatitude,
+                decimalLongitude = signal.DecimalLongitude,
+                telemetry = signal.Telemetry,
+                unitDetail = signal.UnitDetail,
                 icon = signal.Name.Contains("Tug", StringComparison.OrdinalIgnoreCase) || signal.Name.Contains("KM", StringComparison.OrdinalIgnoreCase)
                     ? "tugboat"
                     : "ship",
-                trail = new[]
-                {
-                    new { lat = signal.Latitude - 0.14, lng = signal.Longitude - 0.18 },
-                    new { lat = signal.Latitude - 0.09, lng = signal.Longitude - 0.11 },
-                    new { lat = signal.Latitude - 0.04, lng = signal.Longitude - 0.05 },
-                    new { lat = signal.Latitude, lng = signal.Longitude }
-                }
+                trail = Array.Empty<object>()
             }),
-            zones = new[]
-            {
-                new { name = "Makassar Pilot Zone", lat = -1.85, lng = 119.15, radius = 45000, tone = "live" },
-                new { name = "Coal Anchorage East", lat = -2.45, lng = 119.72, radius = 30000, tone = "warn" },
-                new { name = "Restricted Energy Corridor", lat = -1.25, lng = 119.48, radius = 22000, tone = "alert" }
-            },
-            liveUnitApi = "/api/unit-status"
+            zones = Array.Empty<object>(),
+            liveUnitApi = "/api/unit-status",
+            historyTracksApi = "/api/history-tracks"
         }));
 
         window.initializeSeaWayMap("seaWayMap", window.seawayMapData);
