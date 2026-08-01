@@ -89,7 +89,7 @@
         const liveUnitSeed = mapData.liveUnit ?? null;
         const liveUnitApi = mapData.liveUnitApi || "/api/unit-status";
         const historyTracksApi = mapData.historyTracksApi || "/api/history-tracks";
-        const assetBase = "/icon";
+        const assetBase = window.assetBaseUrl || "icon"; // Use relative or injected base
         const seedLat = liveUnitSeed && typeof liveUnitSeed.latitude === "number" ? liveUnitSeed.latitude : Number(center.lat);
         const seedLng = liveUnitSeed && typeof liveUnitSeed.longitude === "number" ? liveUnitSeed.longitude : Number(center.lng);
         const lat = Number.isFinite(seedLat) ? seedLat : -2.55;
@@ -110,23 +110,56 @@
         const baseLayers = {
             standard: L.tileLayer("/api/tiles/standard/{z}/{x}/{y}.png", {
                 maxZoom: 19,
+                zIndex: 1,
                 attribution: "&copy; OpenStreetMap contributors"
             }),
             dark: L.tileLayer("/api/tiles/dark/{z}/{x}/{y}.png", {
                 maxZoom: 19,
+                zIndex: 1,
                 attribution: "&copy; CARTO"
             }),
             satellite: L.tileLayer("/api/tiles/satellite/{z}/{x}/{y}.png", {
                 maxZoom: 19,
+                zIndex: 1,
                 attribution: "Tiles &copy; Esri"
             })
         };
 
         const seamapLayer = L.tileLayer("/api/tiles/seamark/{z}/{x}/{y}.png", {
             maxZoom: 18,
-            opacity: 0.85,
+            opacity: 1,
+            zIndex: 10,
             attribution: "Sea map overlay &copy; OpenSeaMap contributors"
         });
+
+        const bathymetryLayer = L.tileLayer.wms("https://ows.emodnet-bathymetry.eu/wms", {
+            layers: 'emodnet:mean',
+            format: 'image/png',
+            transparent: true,
+            opacity: 0.6,
+            attribution: "EMODnet Bathymetry"
+        });
+
+        let heatmapPoints = [];
+        if (signals) {
+            signals.forEach(sig => {
+                if (Array.isArray(sig.trail)) {
+                    sig.trail.forEach(t => {
+                        if (typeof t.latitude === 'number' && typeof t.longitude === 'number') {
+                            heatmapPoints.push([t.latitude, t.longitude, 1]);
+                        }
+                    });
+                }
+            });
+        }
+        if (heatmapPoints.length === 0 && liveUnitSeed && Array.isArray(liveUnitSeed.trail)) {
+            liveUnitSeed.trail.forEach(t => {
+                if (typeof t.latitude === 'number' && typeof t.longitude === 'number') {
+                    heatmapPoints.push([t.latitude, t.longitude, 1]);
+                }
+            });
+        }
+        const heatmapLayer = typeof L.heatLayer === "function" ? L.heatLayer(heatmapPoints, { radius: 25, blur: 15, maxZoom: 14 }) : L.layerGroup();
 
         let currentTheme = localStorage.getItem("seaway_map_theme") || "standard";
         if (!baseLayers[currentTheme]) {
@@ -987,8 +1020,8 @@
                         <div style="background: rgba(15, 23, 42, 0.92); color: #00f0ff; font-family: monospace; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; border: 1px solid rgba(0, 240, 255, 0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.6); white-space: nowrap; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; backdrop-filter: blur(8px);">
                             ${unitNameText}
                         </div>
-                        <div class="MainGuard-marker ${toneClass}" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
-                            <img class="MainGuard-marker-image" src="${assetBase}/${imageName}" alt="${unitNameText}" style="width: 40px; height: 40px; transform: rotate(${headingDegrees}deg); transition: transform 0.3s ease; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));" />
+                        <div class="MainGuard-marker ${toneClass}" style="position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
+                            <img class="MainGuard-marker-image" src="${assetBase}/${imageName}" alt="${unitNameText}" style="width: 60px; height: 60px; transform: rotate(${headingDegrees}deg); transition: transform 0.3s ease; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));" />
                             <span class="MainGuard-marker-ring"></span>
                             ${cloudHtml}
                         </div>
@@ -998,8 +1031,8 @@
                         ${marineHtml}
                     </div>
                 `,
-                iconSize: [120, 96],
-                iconAnchor: [60, 48]
+                iconSize: [140, 120],
+                iconAnchor: [70, 60]
             });
         };
 
@@ -1146,7 +1179,9 @@
 
         const overlays = {
             ais: aisTrailLayer,
-            history: historyTrackLayer
+            history: historyTrackLayer,
+            bathymetry: bathymetryLayer,
+            heatmap: heatmapLayer
         };
 
         const loadHistoryTracks = async () => {
@@ -1158,6 +1193,8 @@
                 historyTrackLayer.clearLayers();
 
                 if (!Array.isArray(tracksData)) return;
+                
+                const newHeatPts = [];
 
                 tracksData.forEach((unitTrack) => {
                     if (!unitTrack.points || unitTrack.points.length === 0) return;
@@ -1171,6 +1208,9 @@
 
                     // 1. Add historical points recorded in the past
                     unitTrack.points.forEach((pt) => {
+                        if (typeof pt.latitude === "number" && typeof pt.longitude === "number") {
+                            newHeatPts.push([pt.latitude, pt.longitude, 1]);
+                        }
                         if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
                             const dLat = Math.abs(pt.latitude - liveSignal.latitude);
                             const dLng = Math.abs(pt.longitude - liveSignal.longitude);
@@ -1237,6 +1277,10 @@
                         );
                     }
                 });
+                
+                if (typeof heatmapLayer.setLatLngs === "function" && newHeatPts.length > 0) {
+                    heatmapLayer.setLatLngs(newHeatPts);
+                }
             } catch (e) {
                 console.warn("Failed to fetch history tracks", e);
             }

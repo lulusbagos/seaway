@@ -1,10 +1,12 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using SeaWay.Data;
 using SeaWay.Data.Entities;
 using SeaWay.Models.ViewModels;
 
 namespace SeaWay.Services;
 
-public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterService unitMasterService)
+public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterService unitMasterService, SeaWayDbContext dbContext)
 {
     private const string CameraOrigin = "https://lenzguard.com";
     private const string DefaultCameraUrl =
@@ -117,6 +119,26 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
                 var defaultLng = deviceId == "488260670812" ? 117.708300 : 117.658300;
                 var latitude = GetCoordinate(item, "mlat", "lat", defaultLat);
                 var longitude = GetCoordinate(item, "mlng", "lng", defaultLng);
+                
+                if (Math.Abs(latitude) < 0.0001 && Math.Abs(longitude) < 0.0001)
+                {
+                    var lastKnown = await dbContext.HistoryTracks
+                        .Where(x => x.UnitCode == unitCode && (Math.Abs(x.Latitude) >= 0.0001 || Math.Abs(x.Longitude) >= 0.0001))
+                        .OrderByDescending(x => x.RecordedAt)
+                        .FirstOrDefaultAsync();
+                        
+                    if (lastKnown != null)
+                    {
+                        latitude = lastKnown.Latitude;
+                        longitude = lastKnown.Longitude;
+                    }
+                    else
+                    {
+                        latitude = defaultLat;
+                        longitude = defaultLng;
+                    }
+                }
+
                 var speedRaw = GetInt(item, "sp", 0);
                 var speedKmh = speedRaw / 10.0;
                 var speedKnots = KmhToKnots(speedKmh);

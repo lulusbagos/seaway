@@ -66,6 +66,12 @@
                             <button class="map-chip map-chip-toggle" type="button" id="btnToggleMarineWave">
                                 <i class="bi bi-water"></i> Gelombang
                             </button>
+                            <button class="map-chip map-chip-toggle" type="button" data-map-layer="bathymetry">
+                                <i class="bi bi-layers"></i> Kedalaman Laut
+                            </button>
+                            <button class="map-chip map-chip-toggle" type="button" data-map-layer="heatmap">
+                                <i class="bi bi-fire"></i> Heatmap
+                            </button>
                             <button class="map-chip map-chip-action" type="button" id="btnToggleMapFullscreen" title="Mode Layar Penuh Peta">
                                 <i class="bi bi-arrows-fullscreen"></i> Fullscreen
                             </button>
@@ -291,6 +297,11 @@
     <style>
         .map-overlay { z-index: 1000 !important; }
         
+        /* Smooth Marker Movement */
+        .leaflet-marker-icon, .leaflet-marker-shadow {
+            transition: transform 0.5s linear;
+        }
+        
         /* Dynamic History Track Colors */
         body[data-map-theme="standard"] .history-track-outline { stroke: #ffffff !important; }
         body[data-map-theme="standard"] .history-track-main { stroke: #000000 !important; }
@@ -364,6 +375,7 @@
 @section Scripts {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
         window.seawayMapData = @Html.Raw(JsonSerializer.Serialize(new
         {
