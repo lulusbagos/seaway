@@ -1282,7 +1282,7 @@
                         const timeText = startPt.timeLabel || (startPt.recordedAt ? startPt.recordedAt.substring(11, 16) : "");
                         startMarker.bindTooltip(
                             `<div style="font-size:0.8rem; line-height: 1.4; background:#0f172a; color:#ffffff; padding:4px 8px; border-radius:6px; border:1px solid #00f0ff; box-shadow:0 4px 12px rgba(0,0,0,0.6);">` +
-                            `<strong style="color:#00f0ff;">${unitName}</strong> (🚩 Titik Awal 24 Jam)<br/>` +
+                            `<strong style="color:#00f0ff;">${unitName}</strong> (🚩 Titik Awal 48 Jam)<br/>` +
                             `🕒 <b>${timeText}</b> &middot; ⚓ <b>${startPt.speedKnots} Knot</b> (${startPt.headingDeg}°)</div>`,
                             { direction: "top", opacity: 0.95 }
                         );
