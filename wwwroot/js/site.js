@@ -1199,9 +1199,11 @@
                 const getTrackColor = (name) => {
                     let hash = 0;
                     for (let i = 0; i < name.length; i++) {
-                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                        hash = (hash << 5) - hash + name.charCodeAt(i);
+                        hash = hash & hash;
                     }
-                    return trackColors[Math.abs(hash) % trackColors.length];
+                    hash = Math.abs(hash ^ name.length);
+                    return trackColors[hash % trackColors.length];
                 };
 
                 tracksData.forEach((unitTrack) => {
