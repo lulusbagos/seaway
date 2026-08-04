@@ -5,9 +5,9 @@ namespace SeaWay.Services;
 
 public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService unitStatusService)
 {
-    public async Task<List<UnitHistoryTrackViewModel>> GetHistoryForLast24HoursAsync()
+    public async Task<List<UnitHistoryTrackViewModel>> GetHistoryForLast48HoursAsync()
     {
-        var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddHours(-24), DateTimeKind.Unspecified);
+        var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddHours(-48), DateTimeKind.Unspecified);
         var tracks = await dbContext.HistoryTracks
             .Where(t => t.RecordedAt >= cutoff)
             .OrderBy(t => t.RecordedAt)

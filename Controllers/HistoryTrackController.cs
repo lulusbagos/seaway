@@ -11,7 +11,7 @@ public class HistoryTrackController(HistoryTrackService historyTrackService) : C
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var historyData = await historyTrackService.GetHistoryForLast24HoursAsync();
+        var historyData = await historyTrackService.GetHistoryForLast48HoursAsync();
         return Json(historyData);
     }
 }
