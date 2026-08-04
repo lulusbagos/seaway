@@ -1,0 +1,115 @@
+@model IReadOnlyList<SeaWay.Data.Entities.UnitMaster>
+@{
+    var pageTitle = ViewData["Title"] as string;
+    var pageSubtitle = ViewData["Subtitle"] as string;
+    var totalUnits = Model?.Count ?? 0;
+    var activeUnits = Model?.Count(unit => unit.IsActive) ?? 0;
+}
+
+<div class="unit-admin-shell">
+    <section class="unit-hero">
+        <div class="unit-hero-copy">
+            <div class="panel-eyebrow">Quick Add Unit</div>
+            <h2 class="panel-title">Tambahkan Kapal Baru</h2>
+            <p class="panel-copy">
+                Cukup masukkan <strong>Nama Kapal</strong> dan <strong>ID Unit</strong>. Video dan GPS URL akan otomatis diisi dan tersimpan di database.
+            </p>
+        </div>
+        <div class="unit-hero-metrics">
+            <div class="unit-hero-metric">
+                <span>Total Units</span>
+                <strong>@totalUnits</strong>
+                <small>all records</small>
+            </div>
+            <div class="unit-hero-metric">
+                <span>Active</span>
+                <strong>@activeUnits</strong>
+                <small>online ready</small>
+            </div>
+        </div>
+    </section>
+
+    @if (TempData["ErrorMessage"] is string errorMsg)
+    {
+        <div class="badge-soft warn mb-3">@errorMsg</div>
+    }
+    @if (TempData["UnitMessage"] is string msg)
+    {
+        <div class="badge-soft live mb-3">@msg</div>
+    }
+
+    <section class="unit-dashboard-grid" style="margin-top: 2rem;">
+        <article class="card-panel unit-list-panel">
+            <div class="panel-header unit-list-header">
+                <div>
+                    <h3 class="panel-title">Daftar Unit Tersimpan</h3>
+                    <p class="panel-copy">Menampilkan semua unit kapal yang ada di sistem.</p>
+                </div>
+            </div>
+
+            <div class="unit-table-wrap">
+                <table class="unit-table" id="unitTable">
+                    <thead>
+                        <tr>
+                            <th>Nama Kapal</th>
+                            <th>ID Unit</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null)
+                        {
+                            foreach (var unit in Model)
+                            {
+                                var imageUrl = string.IsNullOrWhiteSpace(unit.UnitImageUrl) ? Url.Content("~/image/ship.png") : unit.UnitImageUrl!;
+                                <tr>
+                                    <td>
+                                        <div class="unit-cell-main">
+                                            <div class="unit-thumb">
+                                                <img src="@imageUrl" alt="@unit.UnitName" />
+                                            </div>
+                                            <div>
+                                                <div class="unit-name">@unit.UnitName</div>
+                                                <div class="unit-sub">@unit.UnitCode</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="unit-mono">@unit.DeviceIdNo</td>
+                                    <td>
+                                        <span class="badge-soft @(unit.IsActive ? "live" : "warn")">@(unit.IsActive ? "Active" : "Inactive")</span>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <aside class="card-panel unit-editor-panel">
+            <div class="panel-header unit-editor-header">
+                <div>
+                    <h3 class="panel-title">Form Kapal Baru</h3>
+                </div>
+            </div>
+
+            <form asp-action="QuickAdd" method="post" class="unit-editor-form">
+                @Html.AntiForgeryToken()
+                <div class="form-stack">
+                    <div>
+                        <label for="unitName">Nama Kapal</label>
+                        <input id="unitName" name="unitName" type="text" class="field-control" placeholder="Contoh: Bintang Sangkulirang III" required />
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <label for="deviceIdNo">ID Unit (GPS)</label>
+                        <input id="deviceIdNo" name="deviceIdNo" type="text" class="field-control" placeholder="Contoh: 148826051581" required />
+                    </div>
+                    
+                    <button type="submit" class="submit-button" style="margin-top: 2rem;">
+                        <span class="submit-button-label">Simpan Unit</span>
+                    </button>
+                </div>
+            </form>
+        </aside>
+    </section>
+</div>

@@ -1195,11 +1195,20 @@
                 if (!Array.isArray(tracksData)) return;
                 
                 const newHeatPts = [];
+                const trackColors = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#14b8a6", "#3f6212", "#0369a1", "#4f46e5", "#be123c"];
+                const getTrackColor = (name) => {
+                    let hash = 0;
+                    for (let i = 0; i < name.length; i++) {
+                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                    }
+                    return trackColors[Math.abs(hash) % trackColors.length];
+                };
 
                 tracksData.forEach((unitTrack) => {
                     if (!unitTrack.points || unitTrack.points.length === 0) return;
 
                     const unitName = escapeHtml(unitTrack.unitName || unitTrack.unitCode || "Unit");
+                    const trackColor = getTrackColor(unitName);
 
                     // Find live signal ship position on the map
                     const liveSignal = signals.find(s => (s.unitCode && s.unitCode === unitTrack.unitCode) || (s.unitName && s.unitName === unitTrack.unitName) || (s.name && s.name === unitTrack.unitName));
@@ -1242,7 +1251,7 @@
                     // 4. Main track line (3.2px width) - SMOOTH LINE WITHOUT OVERLAPPING CIRCLES!
                     const mainPolyline = L.polyline(latLngs, {
                         className: 'history-track-main',
-                        color: "#000000",
+                        color: trackColor,
                         weight: 3.2,
                         opacity: 1,
                         lineCap: "round",
@@ -1264,7 +1273,7 @@
                             radius: 5,
                             color: "#ffffff",
                             weight: 2,
-                            fillColor: "#000000",
+                            fillColor: trackColor,
                             fillOpacity: 1
                         }).addTo(historyTrackLayer);
 
@@ -1469,9 +1478,34 @@
                     signals.forEach((signal) => {
                         if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
                         if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-                        
-                        const marker = buildIcon(signal);
-                        marker.on("click", () => handleSignalClick(signal));
+                        const devId = signal.deviceId || "";
+                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
+
+                        const signalObject = {
+                            name: signal.unitName || signal.name || "Vessel Unit",
+                            status: signal.status || "online",
+                            speedLabel: signal.speedLabel || "-",
+                            heading: signal.heading || "-",
+                            icon: signal.icon || "ship",
+                            cameraUrl: cameraUrl,
+                            deviceId: devId,
+                            unitCode: signal.unitCode || "",
+                            unitName: signal.unitName || signal.name || "",
+                            unitDetail: signal.unitDetail || "",
+                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
+                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
+                            rawLatitude: signal.rawLatitude || "",
+                            rawLongitude: signal.rawLongitude || "",
+                            decimalLatitude: signal.decimalLatitude || "",
+                            decimalLongitude: signal.decimalLongitude || "",
+                            latitude: signal.latitude,
+                            longitude: signal.longitude,
+                            telemetry: signal.telemetry || [],
+                            trail: signal.trail || []
+                        };
+
+                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
+                        marker.on("click", () => openVesselCameraModal(signalObject));
                         vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
                     });
                     
@@ -1506,8 +1540,34 @@
                     signals.forEach((signal) => {
                         if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
                         if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-                        const marker = buildIcon(signal);
-                        marker.on("click", () => handleSignalClick(signal));
+                        const devId = signal.deviceId || "";
+                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
+
+                        const signalObject = {
+                            name: signal.unitName || signal.name || "Vessel Unit",
+                            status: signal.status || "online",
+                            speedLabel: signal.speedLabel || "-",
+                            heading: signal.heading || "-",
+                            icon: signal.icon || "ship",
+                            cameraUrl: cameraUrl,
+                            deviceId: devId,
+                            unitCode: signal.unitCode || "",
+                            unitName: signal.unitName || signal.name || "",
+                            unitDetail: signal.unitDetail || "",
+                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
+                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
+                            rawLatitude: signal.rawLatitude || "",
+                            rawLongitude: signal.rawLongitude || "",
+                            decimalLatitude: signal.decimalLatitude || "",
+                            decimalLongitude: signal.decimalLongitude || "",
+                            latitude: signal.latitude,
+                            longitude: signal.longitude,
+                            telemetry: signal.telemetry || [],
+                            trail: signal.trail || []
+                        };
+
+                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
+                        marker.on("click", () => openVesselCameraModal(signalObject));
                         vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
                     });
                     vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
@@ -1539,8 +1599,34 @@
                     signals.forEach((signal) => {
                         if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
                         if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-                        const marker = buildIcon(signal);
-                        marker.on("click", () => handleSignalClick(signal));
+                        const devId = signal.deviceId || "";
+                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
+
+                        const signalObject = {
+                            name: signal.unitName || signal.name || "Vessel Unit",
+                            status: signal.status || "online",
+                            speedLabel: signal.speedLabel || "-",
+                            heading: signal.heading || "-",
+                            icon: signal.icon || "ship",
+                            cameraUrl: cameraUrl,
+                            deviceId: devId,
+                            unitCode: signal.unitCode || "",
+                            unitName: signal.unitName || signal.name || "",
+                            unitDetail: signal.unitDetail || "",
+                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
+                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
+                            rawLatitude: signal.rawLatitude || "",
+                            rawLongitude: signal.rawLongitude || "",
+                            decimalLatitude: signal.decimalLatitude || "",
+                            decimalLongitude: signal.decimalLongitude || "",
+                            latitude: signal.latitude,
+                            longitude: signal.longitude,
+                            telemetry: signal.telemetry || [],
+                            trail: signal.trail || []
+                        };
+
+                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
+                        marker.on("click", () => openVesselCameraModal(signalObject));
                         vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
                     });
                     vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));

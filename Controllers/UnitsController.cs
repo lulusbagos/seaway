@@ -68,6 +68,46 @@ public class UnitsController(UnitMasterService unitMasterService, IWebHostEnviro
         return RedirectToAction(nameof(Index), new { unitId = entity.UnitId });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> QuickAdd()
+    {
+        var units = await unitMasterService.GetAllAsync();
+        ViewData["Title"] = "Quick Add Unit";
+        ViewData["Subtitle"] = "Tambahkan unit kapal baru dengan cepat.";
+        return View(units);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> QuickAdd(string unitName, string deviceIdNo)
+    {
+        if (string.IsNullOrWhiteSpace(unitName) || string.IsNullOrWhiteSpace(deviceIdNo))
+        {
+            TempData["ErrorMessage"] = "Nama Kapal dan ID Unit wajib diisi.";
+            return RedirectToAction(nameof(QuickAdd));
+        }
+
+        var entity = new UnitMaster
+        {
+            UnitCode = unitName.Trim(),
+            UnitName = unitName.Trim(),
+            DeviceIdNo = deviceIdNo.Trim(),
+            SessionToken = "7725f0b6e9404a5d86bb6ccab539db9e",
+            GpsStatusUrl = "https://lenzguard.com/StandardApiAction_getDeviceStatus.action",
+            CameraUrl = $"https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno={deviceIdNo.Trim()}&account=GLJ01&password=123456",
+            IconKey = "ship",
+            UnitType = "Merchant Vessel",
+            UnitDetail = $"Live GPS/AIS unit {unitName.Trim()} untuk monitoring operasional.",
+            IsActive = true,
+            IsDefault = false,
+            UnitImageUrl = "/image/ship.png"
+        };
+
+        await unitMasterService.SaveAsync(entity);
+        TempData["UnitMessage"] = $"Kapal '{unitName}' berhasil ditambahkan. Silakan refresh Dashboard.";
+        return RedirectToAction("Index", "Dashboard");
+    }
+
     private static UnitEditViewModel Map(UnitMaster? unit)
     {
         if (unit is null)

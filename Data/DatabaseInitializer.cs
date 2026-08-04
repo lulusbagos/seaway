@@ -209,6 +209,60 @@ public static class DatabaseInitializer
                   true,
                   false
               WHERE NOT EXISTS (SELECT 1 FROM tbl_m_unit WHERE device_idno = '488260670812');
+
+              INSERT INTO tbl_m_unit (
+                  unit_code, unit_name, device_idno, session_token, gps_status_url, camera_url, unit_image_url, icon_key, unit_type, unit_detail, is_active, is_default
+              )
+              SELECT
+                  'Bintang Sangkulirang 01',
+                  'Bintang Sangkulirang 01',
+                  '488260670612',
+                  '7725f0b6e9404a5d86bb6ccab539db9e',
+                  'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
+                  'https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=488260670612&account=GLJ01&password=123456',
+                  '/image/ship.png',
+                  'ship',
+                  'Merchant Vessel',
+                  'Live GPS/AIS unit Bintang Sangkulirang 01 untuk monitoring operasional.',
+                  true,
+                  false
+              WHERE NOT EXISTS (SELECT 1 FROM tbl_m_unit WHERE device_idno = '488260670612');
+
+              INSERT INTO tbl_m_unit (
+                  unit_code, unit_name, device_idno, session_token, gps_status_url, camera_url, unit_image_url, icon_key, unit_type, unit_detail, is_active, is_default
+              )
+              SELECT
+                  'Bintang Sangkulirang III',
+                  'Bintang Sangkulirang III',
+                  '148826051581',
+                  '7725f0b6e9404a5d86bb6ccab539db9e',
+                  'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
+                  'https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=148826051581&account=GLJ01&password=123456',
+                  '/image/ship.png',
+                  'ship',
+                  'Merchant Vessel',
+                  'Live GPS/AIS unit Bintang Sangkulirang III untuk monitoring operasional.',
+                  true,
+                  false
+              WHERE NOT EXISTS (SELECT 1 FROM tbl_m_unit WHERE device_idno = '148826051581');
+
+              INSERT INTO tbl_m_unit (
+                  unit_code, unit_name, device_idno, session_token, gps_status_url, camera_url, unit_image_url, icon_key, unit_type, unit_detail, is_active, is_default
+              )
+              SELECT
+                  'Gadjah Lampung I',
+                  'Gadjah Lampung I',
+                  '488260671412',
+                  '7725f0b6e9404a5d86bb6ccab539db9e',
+                  'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
+                  'https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=488260671412&account=GLJ01&password=123456',
+                  '/image/ship.png',
+                  'ship',
+                  'Merchant Vessel',
+                  'Live GPS/AIS unit Gadjah Lampung I untuk monitoring operasional.',
+                  true,
+                  false
+              WHERE NOT EXISTS (SELECT 1 FROM tbl_m_unit WHERE device_idno = '488260671412');
             """;
 
         await dbContext.Database.ExecuteSqlRawAsync(sql);

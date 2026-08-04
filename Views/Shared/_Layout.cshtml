@@ -72,9 +72,9 @@
                         <i class="bi bi-shield-lock"></i>
                         <span>Role Access</span>
                     </a>
-                    <a class="sidebar-link @(controllerName == "Units" ? "active" : null)" asp-controller="Units" asp-action="Index">
-                        <i class="bi bi-sliders"></i>
-                        <span>Unit Settings</span>
+                    <a class="sidebar-link @(controllerName == "Units" && ViewContext.RouteData.Values["action"]?.ToString() == "QuickAdd" ? "active" : null)" asp-controller="Units" asp-action="QuickAdd">
+                        <i class="bi bi-plus-square"></i>
+                        <span>Add Unit</span>
                     </a>
                 </nav>
             </div>
