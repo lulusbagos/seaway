@@ -101,12 +101,23 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
                 // ignore
             }
 
+            // Generate a color based on the unit name hash
+            string[] trackColors = { "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#14b8a6", "#3f6212", "#0369a1", "#4f46e5", "#be123c" };
+            int hash = 0;
+            string nameForHash = unitMaster.UnitName ?? unitCode;
+            for (int i = 0; i < nameForHash.Length; i++)
+            {
+                hash = (hash << 5) - hash + nameForHash[i];
+            }
+            hash = Math.Abs(hash);
+            string generatedColor = trackColors[hash % trackColors.Length];
+
             result.Add(new UnitHistoryTrackViewModel
             {
                 UnitId = unitMaster.UnitId,
                 UnitCode = unitCode,
                 UnitName = unitMaster.UnitName,
-                Color = "#000000",
+                Color = generatedColor,
                 Points = points
             });
         }
