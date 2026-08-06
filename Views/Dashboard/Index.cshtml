@@ -36,14 +36,15 @@
                         </div>
                     </div>
 
-                    <div class="map-controls-row">
-                        <div class="map-filter-group" aria-label="Filter Kapal">
+                    <div class="map-controls-row mb-2">
+                        <div class="map-pill-group" aria-label="Filter Kapal">
                             <button class="map-chip active" type="button" data-ship-filter="all">Semua</button>
                             <button class="map-chip" type="button" data-ship-filter="online">Aktif</button>
                             <button class="map-chip" type="button" data-ship-filter="warning">Pengawasan</button>
                             <button class="map-chip" type="button" data-ship-filter="alert">Peringatan</button>
                         </div>
-                        <div class="map-layer-group">
+                        
+                        <div class="map-pill-group">
                             <div class="dropdown d-inline-block">
                                 <button class="map-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah Tema Peta">
                                     <i class="bi bi-palette"></i> Tema
@@ -57,11 +58,30 @@
                             <button class="map-chip map-chip-toggle active" type="button" data-map-layer="ais">
                                 <i class="bi bi-bezier2"></i> Jalur AIS
                             </button>
+                            <button class="map-chip map-chip-action" type="button" id="btnToggleMapFullscreen" title="Mode Layar Penuh Peta">
+                                <i class="bi bi-arrows-fullscreen"></i> Fullscreen
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="map-controls-row">
+                        <div class="map-pill-group">
                             <button class="map-chip map-chip-toggle active" type="button" data-map-layer="history">
                                 <i class="bi bi-clock-history"></i> Histori Track
                             </button>
+                            <div class="d-flex align-items-center" style="gap: 4px; padding: 0 10px 0 2px;">
+                                <i class="bi bi-calendar-range text-secondary ms-1 me-1"></i>
+                                <input type="date" id="historyStartDate" class="map-date-input" title="Tanggal Awal">
+                                <span class="text-secondary" style="font-size: 0.8rem;">-</span>
+                                <input type="date" id="historyEndDate" class="map-date-input" title="Tanggal Akhir">
+                                <button class="btn btn-sm btn-primary rounded-pill p-0 ms-1" id="btnFilterHistory" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;" title="Filter Histori"><i class="bi bi-search" style="font-size: 0.7rem;"></i></button>
+                                <button class="btn btn-sm btn-success rounded-pill p-0 ms-1" id="btnPlayHistory" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;" title="Putar Animasi Kapal"><i class="bi bi-play-fill" style="font-size: 1rem;"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="map-pill-group">
                             <button class="map-chip map-chip-toggle" type="button" id="btnToggleWeatherCloud">
-                                <i class="bi bi-cloud-sun"></i> Cuaca (Awan)
+                                <i class="bi bi-cloud-sun"></i> Cuaca
                             </button>
                             <button class="map-chip map-chip-toggle" type="button" id="btnToggleMarineWave">
                                 <i class="bi bi-water"></i> Gelombang
@@ -71,9 +91,6 @@
                             </button>
                             <button class="map-chip map-chip-toggle" type="button" data-map-layer="heatmap">
                                 <i class="bi bi-fire"></i> Heatmap
-                            </button>
-                            <button class="map-chip map-chip-action" type="button" id="btnToggleMapFullscreen" title="Mode Layar Penuh Peta">
-                                <i class="bi bi-arrows-fullscreen"></i> Fullscreen
                             </button>
                         </div>
                     </div>
@@ -296,6 +313,39 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <style>
         .map-overlay { z-index: 1000 !important; }
+        
+        .map-pill-group {
+            background: rgba(10, 15, 25, 0.45);
+            padding: 4px;
+            border-radius: 999px;
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+        
+        .map-date-input {
+            background: transparent;
+            border: none;
+            font-size: 0.78rem;
+            color: #f8fafc;
+            outline: none;
+            cursor: pointer;
+            padding: 0;
+            font-family: inherit;
+        }
+        .map-date-input::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 0;
+            margin-left: 2px;
+        }
+        .map-date-input::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
         
         /* Smooth Marker Movement */
         .leaflet-marker-icon, .leaflet-marker-shadow {

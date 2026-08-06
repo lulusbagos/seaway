@@ -96,6 +96,32 @@
         const lng = Number.isFinite(seedLng) ? seedLng : 118.65;
         const zoom = liveUnitSeed ? 13 : (Number(center.zoom) || 6);
 
+        // Smooth polyline using Catmull-Rom spline
+        const getCurvePoints = (pts, tension = 0.5, numOfSegments = 12) => {
+            if (pts.length < 3) return pts;
+            let result = [], x, y, t1x, t2x, t1y, t2y, c1, c2, c3, c4, st, t, i;
+            const p = pts.slice();
+            p.unshift(pts[0]);
+            p.push(pts[pts.length - 1]);
+            for (i = 1; i < p.length - 2; i++) {
+                for (t = 0; t <= numOfSegments; t++) {
+                    t1x = (p[i+1][0] - p[i-1][0]) * tension;
+                    t2x = (p[i+2][0] - p[i][0]) * tension;
+                    t1y = (p[i+1][1] - p[i-1][1]) * tension;
+                    t2y = (p[i+2][1] - p[i][1]) * tension;
+                    st = t / numOfSegments;
+                    c1 =   2 * Math.pow(st, 3) - 3 * Math.pow(st, 2) + 1; 
+                    c2 = -(2 * Math.pow(st, 3)) + 3 * Math.pow(st, 2); 
+                    c3 =       Math.pow(st, 3) - 2 * Math.pow(st, 2) + st; 
+                    c4 =       Math.pow(st, 3) -     Math.pow(st, 2);
+                    x = c1 * p[i][0] + c2 * p[i+1][0] + c3 * t1x + c4 * t2x;
+                    y = c1 * p[i][1] + c2 * p[i+1][1] + c3 * t1y + c4 * t2y;
+                    result.push([x, y]);
+                }
+            }
+            return result;
+        };
+
         const map = L.map(containerId, {
             attributionControl: false,
             zoomControl: false,
@@ -209,6 +235,11 @@
         
         const aisTrailLayer = L.layerGroup();
         const historyTrackLayer = L.layerGroup().addTo(map);
+        const historyPlaybackLayer = L.layerGroup().addTo(map);
+        window.loadedHistoryTracks = [];
+        let isPlayingHistory = false;
+        let historyAnimFrame = null;
+        const historyAnimatedMarkers = [];
         const vesselLayer = typeof L.markerClusterGroup === "function"
             ? L.markerClusterGroup({
                 showCoverageOnHover: false,
@@ -556,7 +587,8 @@
             const clampedIndex = Math.max(1, Math.min(pointIndex, trail.length));
             const visibleTrail = trail.slice(0, clampedIndex).map((point) => [point.lat, point.lng]);
             if (visibleTrail.length > 1) {
-                L.polyline(visibleTrail, {
+                const smoothVisibleTrail = getCurvePoints(visibleTrail);
+                L.polyline(smoothVisibleTrail, {
                     color: signal.status === "alert" ? "#ff6f5e" : signal.status === "warning" ? "#ffb84d" : "#2ecf86",
                     weight: 4,
                     opacity: 0.9,
@@ -602,6 +634,19 @@
             const spdVal = teleMap["kecepatan"] || signal.speedLabel || "0.0 Knot";
             const hdgVal = teleMap["arah haluan"] || signal.heading || "0°";
 
+            let extraHtml = '';
+            const standardKeys = ['jaringan', 'status gps', 'kecepatan', 'arah haluan', 'gateway api', 'net', 'gw', 'ol', 'sp'];
+            rawTelemetry.forEach(item => {
+                if (item.label && !standardKeys.includes(item.label.toLowerCase())) {
+                    extraHtml += `
+                        <div class="telemetry-card">
+                            <span class="telemetry-card-label">${escapeHtml(item.label.toUpperCase())}</span>
+                            <strong class="telemetry-card-value" style="font-size: 0.75rem; word-break: break-word;">${escapeHtml(item.value)}</strong>
+                        </div>
+                    `;
+                }
+            });
+
             vesselCameraFields.telemetry.innerHTML = `
                 <div class="telemetry-group">
                     <div class="telemetry-group-title">
@@ -620,6 +665,7 @@
                             <span class="telemetry-card-label">Kecepatan & Haluan</span>
                             <strong class="telemetry-card-value">${escapeHtml(spdVal)} &middot; ${escapeHtml(hdgVal)}</strong>
                         </div>
+                        ${extraHtml}
                     </div>
                 </div>
             `;
@@ -877,7 +923,8 @@
             const trailPoints = liveUnitHistory.map((point) => [point.latitude, point.longitude]);
 
             if (trailPoints.length > 1) {
-                L.polyline(trailPoints, {
+                const smoothTrailPoints = getCurvePoints(trailPoints);
+                L.polyline(smoothTrailPoints, {
                     color: unit.status === "alert" ? "#ff6f5e" : "#2ecf86",
                     weight: 4,
                     opacity: 0.95,
@@ -964,6 +1011,8 @@
             return 0;
         };
 
+        const vesselMarkers = []; // Hoist declaration so buildIcon can see it if needed, but it's fine here.
+
         const buildIcon = (signal) => {
             const status = (signal.status || "online").toLowerCase();
             const toneClass = status === "alert" ? "alert" : status === "warning" ? "warning" : "online";
@@ -1036,7 +1085,6 @@
             });
         };
 
-        const vesselMarkers = [];
 
         signals.forEach((signal) => {
             if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") {
@@ -1082,7 +1130,8 @@
                     .map((point) => [point.lat, point.lng]);
 
                 if (trailPoints.length > 1) {
-                    L.polyline(trailPoints, {
+                    const smoothTrailPoints = getCurvePoints(trailPoints);
+                    L.polyline(smoothTrailPoints, {
                         color: signal.status === "alert" ? "#ff6f5e" : signal.status === "warning" ? "#ffb84d" : "#2ecf86",
                         weight: 3,
                         opacity: 0.78,
@@ -1093,7 +1142,7 @@
                 }
             }
 
-            vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+            vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase(), signalObject: signalObject });
         });
 
         if (liveUnitSeed) {
@@ -1186,11 +1235,31 @@
 
         const loadHistoryTracks = async () => {
             try {
-                const response = await fetch(historyTracksApi, { headers: { Accept: "application/json" } });
+                const startDateInput = document.getElementById("historyStartDate");
+                const endDateInput = document.getElementById("historyEndDate");
+
+                const now = new Date();
+                const past = new Date();
+                past.setDate(now.getDate() - 2);
+
+                if (startDateInput && !startDateInput.value) {
+                    startDateInput.value = past.toISOString().split('T')[0];
+                }
+                if (endDateInput && !endDateInput.value) {
+                    endDateInput.value = now.toISOString().split('T')[0];
+                }
+
+                let query = "";
+                if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+                    query = `?start=${startDateInput.value}&end=${endDateInput.value}`;
+                }
+
+                const response = await fetch(`${historyTracksApi}${query}`, { headers: { Accept: "application/json" } });
                 if (!response.ok) return;
 
                 const tracksData = await response.json();
                 historyTrackLayer.clearLayers();
+                window.loadedHistoryTracks = [];
 
                 if (!Array.isArray(tracksData)) return;
                 
@@ -1219,18 +1288,21 @@
 
                     // 1. Add historical points recorded in the past
                     unitTrack.points.forEach((pt) => {
-                        if (typeof pt.latitude === "number" && typeof pt.longitude === "number") {
-                            newHeatPts.push([pt.latitude, pt.longitude, 1]);
-                        }
-                        if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
-                            const dLat = Math.abs(pt.latitude - liveSignal.latitude);
-                            const dLng = Math.abs(pt.longitude - liveSignal.longitude);
-                            // If historical point is within 50m of current live position, ignore duplicate/stationary point
-                            if (dLat < 0.0005 && dLng < 0.0005) {
-                                return;
+                        const ptLat = parseFloat(pt.latitude || pt.lat);
+                        const ptLng = parseFloat(pt.longitude || pt.lng);
+                        
+                        if (!isNaN(ptLat) && !isNaN(ptLng)) {
+                            newHeatPts.push([ptLat, ptLng, 1]);
+                            
+                            if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
+                                const dLat = Math.abs(ptLat - liveSignal.latitude);
+                                const dLng = Math.abs(ptLng - liveSignal.longitude);
+                                if (dLat < 0.0005 && dLng < 0.0005) {
+                                    return;
+                                }
                             }
+                            latLngs.push([ptLat, ptLng]);
                         }
-                        latLngs.push([pt.latitude, pt.longitude]);
                     });
 
                     // 2. Head of track line is ALWAYS the current live ship position
@@ -1240,8 +1312,11 @@
 
                     if (latLngs.length < 2) return;
 
+                    const smoothLatLngs = getCurvePoints(latLngs);
+                    if (smoothLatLngs.length < 2) return;
+
                     // 3. Sleek contrast outline (6px width)
-                    L.polyline(latLngs, {
+                    L.polyline(smoothLatLngs, {
                         className: 'history-track-outline',
                         color: "#ffffff",
                         weight: 6,
@@ -1251,7 +1326,7 @@
                     }).addTo(historyTrackLayer);
 
                     // 4. Main track line (3.2px width) - SMOOTH LINE WITHOUT OVERLAPPING CIRCLES!
-                    const mainPolyline = L.polyline(latLngs, {
+                    const mainPolyline = L.polyline(smoothLatLngs, {
                         className: 'history-track-main',
                         color: trackColor,
                         weight: 3.2,
@@ -1287,6 +1362,19 @@
                             { direction: "top", opacity: 0.95 }
                         );
                     }
+
+                    window.loadedHistoryTracks.push({
+                        path: smoothLatLngs,
+                        rawPointCount: latLngs.length,
+                        signalObject: liveSignal || {
+                            name: unitName,
+                            status: "online",
+                            speedLabel: "Playback",
+                            heading: 0,
+                            icon: "ship",
+                            unitName: unitName
+                        }
+                    });
                 });
                 
                 if (typeof heatmapLayer.setLatLngs === "function" && newHeatPts.length > 0) {
@@ -1332,6 +1420,131 @@
             });
         });
 
+        const btnFilterHistory = document.getElementById("btnFilterHistory");
+        if (btnFilterHistory) {
+            btnFilterHistory.addEventListener("click", () => {
+                const btnIcon = btnFilterHistory.querySelector("i");
+                if (btnIcon) {
+                    btnIcon.className = "spinner-border spinner-border-sm";
+                }
+                loadHistoryTracks().finally(() => {
+                    if (btnIcon) {
+                        btnIcon.className = "bi bi-search";
+                    }
+                });
+            });
+        }
+
+        const btnPlayHistory = document.getElementById("btnPlayHistory");
+        if (btnPlayHistory) {
+            btnPlayHistory.addEventListener("click", () => {
+                if (isPlayingHistory) {
+                    isPlayingHistory = false;
+                    cancelAnimationFrame(historyAnimFrame);
+                    historyPlaybackLayer.clearLayers();
+                    btnPlayHistory.innerHTML = '<i class="bi bi-play-fill" style="font-size: 1rem;"></i>';
+                    btnPlayHistory.classList.replace("btn-danger", "btn-success");
+                    vesselLayer.addTo(map);
+                    liveUnitLayer.addTo(map);
+                    return;
+                }
+                
+                if (!window.loadedHistoryTracks || window.loadedHistoryTracks.length === 0) {
+                    return;
+                }
+
+                isPlayingHistory = true;
+                btnPlayHistory.innerHTML = '<i class="bi bi-stop-fill" style="font-size: 1rem;"></i>';
+                btnPlayHistory.classList.replace("btn-success", "btn-danger");
+                
+                map.removeLayer(vesselLayer);
+                map.removeLayer(liveUnitLayer);
+                historyPlaybackLayer.clearLayers();
+                historyAnimatedMarkers.length = 0;
+
+                window.loadedHistoryTracks.forEach(trackObj => {
+                    const latLngs = trackObj.path;
+                    if (!latLngs || latLngs.length < 2) return;
+                    
+                    const marker = L.marker(latLngs[0], {
+                        icon: buildIcon(trackObj.signalObject),
+                        zIndexOffset: 1000
+                    }).addTo(historyPlaybackLayer);
+                    
+                    historyAnimatedMarkers.push({
+                        marker: marker,
+                        path: latLngs,
+                        totalPoints: latLngs.length,
+                        duration: Math.max(1, (trackObj.rawPointCount || 2)) * 500
+                    });
+                });
+
+                const startTime = performance.now();
+                let maxDuration = 0;
+                historyAnimatedMarkers.forEach(anim => {
+                    if (anim.duration > maxDuration) maxDuration = anim.duration;
+                });
+                
+                if (maxDuration === 0) maxDuration = 10000;
+
+                const animate = (time) => {
+                    if (!isPlayingHistory) return;
+                    
+                    let elapsed = time - startTime;
+                    let allFinished = true;
+                    
+                    historyAnimatedMarkers.forEach(anim => {
+                        let progress = Math.min(elapsed / anim.duration, 1);
+                        if (progress < 1) allFinished = false;
+                        
+                        const targetIndexFloat = progress * (anim.totalPoints - 1);
+                        const idx1 = Math.floor(targetIndexFloat);
+                        const idx2 = Math.ceil(targetIndexFloat);
+                        const ratio = targetIndexFloat - idx1;
+                        
+                        const p1 = anim.path[idx1];
+                        const p2 = anim.path[idx2] || p1;
+                        
+                        const lat = p1[0] + (p2[0] - p1[0]) * ratio;
+                        const lng = p1[1] + (p2[1] - p1[1]) * ratio;
+                        
+                        anim.marker.setLatLng([lat, lng]);
+                        
+                        if (p2[0] !== p1[0] || p2[1] !== p1[1]) {
+                            const dy = p2[0] - p1[0];
+                            const dx = Math.cos(Math.PI/180*p1[0])*(p2[1] - p1[1]);
+                            const angle = Math.atan2(dx, dy) * 180 / Math.PI;
+                            const iconEl = anim.marker.getElement();
+                            if (iconEl) {
+                                const img = iconEl.querySelector('.MainGuard-marker-image');
+                                if (img) {
+                                    img.style.transition = 'none'; // Disable CSS transition for smooth JS animation
+                                    img.style.transform = `rotate(${angle}deg)`;
+                                }
+                            }
+                        }
+                    });
+
+                    if (!allFinished) {
+                        historyAnimFrame = requestAnimationFrame(animate);
+                    } else {
+                        isPlayingHistory = false;
+                        btnPlayHistory.innerHTML = '<i class="bi bi-play-fill" style="font-size: 1rem;"></i>';
+                        btnPlayHistory.classList.replace("btn-danger", "btn-success");
+                        setTimeout(() => {
+                            if (!isPlayingHistory) {
+                                historyPlaybackLayer.clearLayers();
+                                vesselLayer.addTo(map);
+                                liveUnitLayer.addTo(map);
+                            }
+                        }, 2000);
+                    }
+                };
+                
+                historyAnimFrame = requestAnimationFrame(animate);
+            });
+        }
+
         vesselCameraFields.playbackSlider?.addEventListener("input", () => {
             if (!currentSignal) {
                 return;
@@ -1362,13 +1575,13 @@
         let fleetWeatherTimer = null;
 
         const fetchFleetWeather = async () => {
-            if (!showCloudOverlay || signals.length === 0) return;
+            if (!showCloudOverlay || vesselMarkers.length === 0) return;
             
-            const coords = signals.filter(s => typeof s.latitude === "number" && typeof s.longitude === "number");
+            const coords = vesselMarkers.filter(m => typeof m.signalObject.latitude === "number" && typeof m.signalObject.longitude === "number");
             if (coords.length === 0) return;
             
-            const lats = coords.map(s => s.latitude.toFixed(4)).join(",");
-            const lngs = coords.map(s => s.longitude.toFixed(4)).join(",");
+            const lats = coords.map(m => m.signalObject.latitude.toFixed(4)).join(",");
+            const lngs = coords.map(m => m.signalObject.longitude.toFixed(4)).join(",");
             
             try {
                 const res = await fetch(`${openMeteoApi}?latitude=${lats}&longitude=${lngs}&current=cloud_cover,precipitation,wind_speed_10m`);
@@ -1377,73 +1590,14 @@
                     const results = Array.isArray(data) ? data : [data];
                     results.forEach((r, idx) => {
                         if (r && r.current) {
-                            const ship = coords[idx];
-                            fleetWeatherMap[ship.deviceId || ship.name] = r.current;
+                            const m = coords[idx];
+                            fleetWeatherMap[m.signalObject.deviceId || m.signalObject.name] = r.current;
                         }
                     });
                     
-                    // Refresh marker UI without recreating the map
-                    vesselLayer.clearLayers();
-                    aisTrailLayer.clearLayers();
-                    vesselMarkers.length = 0;
-                    
-                    signals.forEach((signal) => {
-                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
-                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-
-                        const devId = signal.deviceId || "";
-                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
-
-                        const signalObject = {
-                            name: signal.unitName || signal.name || "Vessel Unit",
-                            status: signal.status || "online",
-                            speedLabel: signal.speedLabel || "-",
-                            heading: signal.heading || "-",
-                            icon: signal.icon || "ship",
-                            cameraUrl: cameraUrl,
-                            deviceId: devId,
-                            unitCode: signal.unitCode || "",
-                            unitName: signal.unitName || signal.name || "",
-                            unitDetail: signal.unitDetail || "",
-                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
-                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
-                            rawLatitude: signal.rawLatitude || "",
-                            rawLongitude: signal.rawLongitude || "",
-                            decimalLatitude: signal.decimalLatitude || "",
-                            decimalLongitude: signal.decimalLongitude || "",
-                            latitude: signal.latitude,
-                            longitude: signal.longitude,
-                            telemetry: signal.telemetry || [],
-                            trail: signal.trail || []
-                        };
-
-                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
-                        marker.on("click", () => openVesselCameraModal(signalObject));
-
-                        if (Array.isArray(signal.trail) && signal.trail.length > 1) {
-                            const trailPoints = signal.trail
-                                .filter((point) => typeof point.lat === "number" && typeof point.lng === "number")
-                                .map((point) => [point.lat, point.lng]);
-
-                            if (trailPoints.length > 1) {
-                                L.polyline(trailPoints, {
-                                    color: signal.status === "alert" ? "#ff6f5e" : signal.status === "warning" ? "#ffb84d" : "#2ecf86",
-                                    weight: 3,
-                                    opacity: 0.78,
-                                    dashArray: "8 10",
-                                    lineCap: "round",
-                                    lineJoin: "round"
-                                }).addTo(aisTrailLayer);
-                            }
-                        }
-
-                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    vesselMarkers.forEach(m => {
+                        if (m.signalObject) m.marker.setIcon(buildIcon(m.signalObject));
                     });
-                    
-                    const updateVessels = () => {
-                        vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
-                    };
-                    updateVessels();
                     
                     if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
                 }
@@ -1453,13 +1607,13 @@
         };
 
         const fetchFleetMarine = async () => {
-            if (!showMarineOverlay || signals.length === 0) return;
+            if (!showMarineOverlay || vesselMarkers.length === 0) return;
             
-            const coords = signals.filter(s => typeof s.latitude === "number" && typeof s.longitude === "number");
+            const coords = vesselMarkers.filter(m => typeof m.signalObject.latitude === "number" && typeof m.signalObject.longitude === "number");
             if (coords.length === 0) return;
             
-            const lats = coords.map(s => s.latitude.toFixed(4)).join(",");
-            const lngs = coords.map(s => s.longitude.toFixed(4)).join(",");
+            const lats = coords.map(m => m.signalObject.latitude.toFixed(4)).join(",");
+            const lngs = coords.map(m => m.signalObject.longitude.toFixed(4)).join(",");
             
             try {
                 const res = await fetch(`/api/weather-proxy/marine?latitude=${lats}&longitude=${lngs}&current=wave_height,wave_direction`);
@@ -1468,51 +1622,15 @@
                     const results = Array.isArray(data) ? data : [data];
                     results.forEach((r, idx) => {
                         if (r && r.current) {
-                            const ship = coords[idx];
-                            fleetMarineMap[ship.deviceId || ship.name] = r.current;
+                            const m = coords[idx];
+                            fleetMarineMap[m.signalObject.deviceId || m.signalObject.name] = r.current;
                         }
                     });
                     
-                    vesselLayer.clearLayers();
-                    aisTrailLayer.clearLayers();
-                    vesselMarkers.length = 0;
-                    
-                    signals.forEach((signal) => {
-                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
-                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-                        const devId = signal.deviceId || "";
-                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
-
-                        const signalObject = {
-                            name: signal.unitName || signal.name || "Vessel Unit",
-                            status: signal.status || "online",
-                            speedLabel: signal.speedLabel || "-",
-                            heading: signal.heading || "-",
-                            icon: signal.icon || "ship",
-                            cameraUrl: cameraUrl,
-                            deviceId: devId,
-                            unitCode: signal.unitCode || "",
-                            unitName: signal.unitName || signal.name || "",
-                            unitDetail: signal.unitDetail || "",
-                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
-                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
-                            rawLatitude: signal.rawLatitude || "",
-                            rawLongitude: signal.rawLongitude || "",
-                            decimalLatitude: signal.decimalLatitude || "",
-                            decimalLongitude: signal.decimalLongitude || "",
-                            latitude: signal.latitude,
-                            longitude: signal.longitude,
-                            telemetry: signal.telemetry || [],
-                            trail: signal.trail || []
-                        };
-
-                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
-                        marker.on("click", () => openVesselCameraModal(signalObject));
-                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    vesselMarkers.forEach(m => {
+                        if (m.signalObject) m.marker.setIcon(buildIcon(m.signalObject));
                     });
                     
-                    const updateVessels = () => vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
-                    updateVessels();
                     if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
                 }
             } catch (e) {
@@ -1536,43 +1654,10 @@
                     if (fleetWeatherTimer) clearInterval(fleetWeatherTimer);
                     fleetWeatherMap = {}; 
                     
-                    vesselLayer.clearLayers();
-                    aisTrailLayer.clearLayers();
-                    vesselMarkers.length = 0;
-                    signals.forEach((signal) => {
-                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
-                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-                        const devId = signal.deviceId || "";
-                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
-
-                        const signalObject = {
-                            name: signal.unitName || signal.name || "Vessel Unit",
-                            status: signal.status || "online",
-                            speedLabel: signal.speedLabel || "-",
-                            heading: signal.heading || "-",
-                            icon: signal.icon || "ship",
-                            cameraUrl: cameraUrl,
-                            deviceId: devId,
-                            unitCode: signal.unitCode || "",
-                            unitName: signal.unitName || signal.name || "",
-                            unitDetail: signal.unitDetail || "",
-                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
-                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
-                            rawLatitude: signal.rawLatitude || "",
-                            rawLongitude: signal.rawLongitude || "",
-                            decimalLatitude: signal.decimalLatitude || "",
-                            decimalLongitude: signal.decimalLongitude || "",
-                            latitude: signal.latitude,
-                            longitude: signal.longitude,
-                            telemetry: signal.telemetry || [],
-                            trail: signal.trail || []
-                        };
-
-                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
-                        marker.on("click", () => openVesselCameraModal(signalObject));
-                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    vesselMarkers.forEach(m => {
+                        if (m.signalObject) m.marker.setIcon(buildIcon(m.signalObject));
                     });
-                    vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
+                    
                     if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
                 }
             });
@@ -1595,43 +1680,10 @@
                     if (fleetMarineTimer) clearInterval(fleetMarineTimer);
                     fleetMarineMap = {}; 
                     
-                    vesselLayer.clearLayers();
-                    aisTrailLayer.clearLayers();
-                    vesselMarkers.length = 0;
-                    signals.forEach((signal) => {
-                        if (typeof signal.latitude !== "number" || typeof signal.longitude !== "number") return;
-                        if (liveUnitSeed && (signal.unitCode === liveUnitSeed.unitCode || signal.name === liveUnitSeed.name)) return;
-                        const devId = signal.deviceId || "";
-                        const cameraUrl = signal.cameraUrl || (devId ? `https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=${devId}&account=GLJ01&password=123456` : "");
-
-                        const signalObject = {
-                            name: signal.unitName || signal.name || "Vessel Unit",
-                            status: signal.status || "online",
-                            speedLabel: signal.speedLabel || "-",
-                            heading: signal.heading || "-",
-                            icon: signal.icon || "ship",
-                            cameraUrl: cameraUrl,
-                            deviceId: devId,
-                            unitCode: signal.unitCode || "",
-                            unitName: signal.unitName || signal.name || "",
-                            unitDetail: signal.unitDetail || "",
-                            locationStatus: signal.locationStatus || "lokasi tidak sesuai",
-                            locationNote: signal.locationNote || "Koordinat belum divalidasi.",
-                            rawLatitude: signal.rawLatitude || "",
-                            rawLongitude: signal.rawLongitude || "",
-                            decimalLatitude: signal.decimalLatitude || "",
-                            decimalLongitude: signal.decimalLongitude || "",
-                            latitude: signal.latitude,
-                            longitude: signal.longitude,
-                            telemetry: signal.telemetry || [],
-                            trail: signal.trail || []
-                        };
-
-                        const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
-                        marker.on("click", () => openVesselCameraModal(signalObject));
-                        vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase() });
+                    vesselMarkers.forEach(m => {
+                        if (m.signalObject) m.marker.setIcon(buildIcon(m.signalObject));
                     });
-                    vesselMarkers.forEach(m => m.marker.addTo(vesselLayer));
+                    
                     if (liveUnitSeed) updateLiveUnitMarker(liveUnitSeed);
                 }
             });
