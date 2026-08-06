@@ -163,6 +163,7 @@
             format: 'image/png',
             transparent: true,
             opacity: 0.6,
+            zIndex: 5,
             attribution: "EMODnet Bathymetry"
         });
 
@@ -1490,7 +1491,7 @@
                 const animate = (time) => {
                     if (!isPlayingHistory) return;
                     
-                    let elapsed = time - startTime;
+                    let elapsed = performance.now() - startTime;
                     let allFinished = true;
                     
                     historyAnimatedMarkers.forEach(anim => {
