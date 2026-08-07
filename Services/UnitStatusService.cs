@@ -88,8 +88,8 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
         var deviceId = activeUnit?.DeviceIdNo ?? "488260671512";
         var sessionToken = activeUnit?.SessionToken ?? "7725f0b6e9404a5d86bb6ccab539db9e";
         var gpsStatusUrl = activeUnit?.GpsStatusUrl ?? "https://lenzguard.com/StandardApiAction_getDeviceStatus.action";
-        var unitName = activeUnit?.UnitName ?? "Ganesha BS 16";
-        var unitCode = activeUnit?.UnitCode ?? "Ganesha BS 16";
+        var unitName = activeUnit?.UnitName ?? "Ganesha Bintang Sangkulirang XVI";
+        var unitCode = activeUnit?.UnitCode ?? "Ganesha Bintang Sangkulirang XVI";
         var cameraUrl = NormalizeCameraUrl(activeUnit?.CameraUrl ?? DefaultCameraUrl);
         var iconKey = activeUnit?.IconKey ?? "ship";
         var unitType = activeUnit?.UnitType ?? "Merchant Vessel";
@@ -158,6 +158,53 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
                     ? "Koordinat berada dalam area Kaliorang."
                     : "Koordinat berada di luar area Kaliorang.";
 
+                var telemetryList = new List<UnitTelemetryFieldViewModel>
+                {
+                    new() { Label = "Jaringan", Value = $"NET {net}", Tone = "positive" },
+                    new() { Label = "Status GPS", Value = online ? "Aktif (Online)" : "Peringatan (Alert)", Tone = online ? "positive" : "warning" },
+                    new() { Label = "Kecepatan", Value = $"{speedKnots:0.0} Knot", Tone = "positive" },
+                    new() { Label = "Arah Haluan", Value = $"{headingRaw}°", Tone = "positive" },
+                    new() { Label = "Gateway API", Value = string.IsNullOrEmpty(gateway) ? "808GPS Gateway" : gateway, Tone = "positive" }
+                };
+
+                var excludedFields = new HashSet<string> { "id", "vid", "lat", "lng", "mlat", "mlng", "sp", "hx", "ol", "net", "gw", "gt" };
+                foreach (var prop in item.EnumerateObject())
+                {
+                    if (excludedFields.Contains(prop.Name)) continue;
+
+                    bool include = false;
+                    string propValue = "";
+
+                    if (prop.Value.ValueKind == JsonValueKind.Number)
+                    {
+                        double val = prop.Value.GetDouble();
+                        if (val != 0)
+                        {
+                            include = true;
+                            propValue = val.ToString();
+                        }
+                    }
+                    else if (prop.Value.ValueKind == JsonValueKind.String)
+                    {
+                        string str = prop.Value.GetString();
+                        if (!string.IsNullOrWhiteSpace(str) && str != "0" && str != "0.0" && str != "0.000000" && !str.StartsWith("00000000"))
+                        {
+                            include = true;
+                            propValue = str;
+                        }
+                    }
+                    else if (prop.Value.ValueKind == JsonValueKind.True)
+                    {
+                        include = true;
+                        propValue = "True";
+                    }
+
+                    if (include)
+                    {
+                        telemetryList.Add(new UnitTelemetryFieldViewModel { Label = prop.Name, Value = propValue, Tone = "neutral" });
+                    }
+                }
+
                 return new UnitStatusSnapshotViewModel
                 {
                     DeviceId = apiDeviceId,
@@ -187,14 +234,7 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
                     RawLongitude = rawLongitude,
                     DecimalLatitude = latitude.ToString("0.######"),
                     DecimalLongitude = longitude.ToString("0.######"),
-                    Telemetry =
-                    [
-                        new() { Label = "Jaringan", Value = $"NET {net}", Tone = "positive" },
-                        new() { Label = "Status GPS", Value = online ? "Aktif (Online)" : "Peringatan (Alert)", Tone = online ? "positive" : "warning" },
-                        new() { Label = "Kecepatan", Value = $"{speedKnots:0.0} Knot", Tone = "positive" },
-                        new() { Label = "Arah Haluan", Value = $"{headingRaw}°", Tone = "positive" },
-                        new() { Label = "Gateway API", Value = string.IsNullOrEmpty(gateway) ? "808GPS Gateway" : gateway, Tone = "positive" }
-                    ],
+                    Telemetry = telemetryList,
                     Trail = []
                 };
             }
@@ -210,8 +250,8 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
     private static UnitStatusSnapshotViewModel CreateFallbackSnapshot(UnitMaster? unit = null)
     {
         var devId = unit?.DeviceIdNo ?? "488260671512";
-        var unitName = unit?.UnitName ?? "Ganesha BS 16";
-        var unitCode = unit?.UnitCode ?? "Ganesha BS 16";
+        var unitName = unit?.UnitName ?? "Ganesha Bintang Sangkulirang XVI";
+        var unitCode = unit?.UnitCode ?? "Ganesha Bintang Sangkulirang XVI";
         var cameraUrl = !string.IsNullOrWhiteSpace(unit?.CameraUrl)
             ? NormalizeCameraUrl(unit.CameraUrl)
             : $"https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno={devId}&account=GLJ01&password=123456";

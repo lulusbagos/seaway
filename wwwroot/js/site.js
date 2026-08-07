@@ -237,7 +237,36 @@
         const aisTrailLayer = L.layerGroup();
         const historyTrackLayer = L.layerGroup().addTo(map);
         const historyPlaybackLayer = L.layerGroup().addTo(map);
+        const lighthouseLayer = L.layerGroup().addTo(map);
+        const graticuleLayer = L.layerGroup().addTo(map);
+        const fetchedLighthouses = new Set();
+        let lastLighthouseFetchPos = null;
+        let isFetchingLighthouses = false;
         window.loadedHistoryTracks = [];
+
+        if (!document.getElementById("seaway-lighthouse-style")) {
+            const style = document.createElement("style");
+            style.id = "seaway-lighthouse-style";
+            style.textContent = `
+                @keyframes lighthousePulse {
+                    0% { opacity: 0.6; filter: drop-shadow(0 0 2px #ffeb3b); }
+                    50% { opacity: 1; filter: drop-shadow(0 0 12px #ffeb3b) drop-shadow(0 0 20px #ff9800); }
+                    100% { opacity: 0.6; filter: drop-shadow(0 0 2px #ffeb3b); }
+                }
+                .graticule-label {
+                    color: rgba(79, 195, 247, 0.9);
+                    font-family: monospace;
+                    font-size: 10px;
+                    font-weight: 600;
+                    text-shadow: 0 0 2px #0f172a, 0 0 4px #0f172a;
+                    white-space: nowrap;
+                    background: transparent;
+                    border: none;
+                    box-shadow: none;
+                }
+            `;
+            document.head.appendChild(style);
+        }
         let isPlayingHistory = false;
         let historyAnimFrame = null;
         const historyAnimatedMarkers = [];
@@ -840,9 +869,83 @@
             }
         };
 
+        const fetchLighthouses = async (lat, lng) => {
+            isFetchingLighthouses = true;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            try {
+                // Hapus marker lama yang terlalu jauh (> 100km) dari kapal untuk menghemat memori
+                const maxDistance = 100000;
+                lighthouseLayer.eachLayer(layer => {
+                    if (layer.getLatLng) {
+                        const markerLatLng = layer.getLatLng();
+                        const distance = map.distance([lat, lng], markerLatLng);
+                        if (distance > maxDistance) {
+                            lighthouseLayer.removeLayer(layer);
+                            if (layer.options && layer.options.lighthouseId) {
+                                fetchedLighthouses.delete(layer.options.lighthouseId);
+                            }
+                        }
+                    }
+                });
+
+                const radius = 30000;
+                const query = `[out:json][timeout:10];node["man_made"="lighthouse"](around:${radius},${lat},${lng});out;`;
+                const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+                const response = await fetch(url, { signal: controller.signal });
+                if (!response.ok) throw new Error("Overpass API failed");
+                const data = await response.json();
+                
+                if (data && data.elements) {
+                    data.elements.forEach(node => {
+                        if (!fetchedLighthouses.has(node.id)) {
+                            fetchedLighthouses.add(node.id);
+                            const name = node.tags && node.tags.name ? node.tags.name : "Mercusuar";
+                            const height = node.tags && node.tags.height ? `<br/>Tinggi: ${node.tags.height}m` : "";
+                            
+                            const icon = L.divIcon({
+                                className: "lighthouse-marker",
+                                html: `
+                                    <div style="font-size: 24px; color: #ffeb3b; text-shadow: 0 0 4px #000, 0 0 8px #ff9800; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+                                        <i class="bi bi-lightbulb-fill" style="animation: lighthousePulse 2.5s infinite;"></i>
+                                    </div>
+                                `,
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            });
+
+                            L.marker([node.lat, node.lon], { icon, lighthouseId: node.id })
+                                .addTo(lighthouseLayer)
+                                .bindTooltip(`<b>${escapeHtml(name)}</b>${height}`, { direction: "top" });
+                        }
+                    });
+                }
+                lastLighthouseFetchPos = [lat, lng];
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    console.warn("Pencarian mercusuar timeout (terlalu lama)");
+                } else {
+                    console.warn("Gagal memuat mercusuar", err);
+                }
+            } finally {
+                clearTimeout(timeoutId);
+                isFetchingLighthouses = false;
+            }
+        };
+
         const updateLiveUnitMarker = (unit) => {
             if (!unit || typeof unit.latitude !== "number" || typeof unit.longitude !== "number") {
                 return;
+            }
+
+            if (!isFetchingLighthouses) {
+                const distance = lastLighthouseFetchPos 
+                    ? map.distance([unit.latitude, unit.longitude], lastLighthouseFetchPos) 
+                    : Infinity;
+                if (distance > 20000) {
+                    fetchLighthouses(unit.latitude, unit.longitude);
+                }
             }
 
             liveUnitLayer.clearLayers();
@@ -1231,7 +1334,8 @@
             ais: aisTrailLayer,
             history: historyTrackLayer,
             bathymetry: bathymetryLayer,
-            heatmap: heatmapLayer
+            heatmap: heatmapLayer,
+            lighthouse: lighthouseLayer
         };
 
         const loadHistoryTracks = async () => {
@@ -1386,10 +1490,85 @@
             }
         };
 
+        const drawGraticule = () => {
+            if (!map.hasLayer(graticuleLayer)) return;
+            graticuleLayer.clearLayers();
+
+            const bounds = map.getBounds();
+            const zoom = map.getZoom();
+
+            let interval = 10;
+            if (zoom >= 14) interval = 1/60;
+            else if (zoom >= 12) interval = 5/60;
+            else if (zoom >= 10) interval = 1/6;
+            else if (zoom >= 8) interval = 0.5;
+            else if (zoom >= 6) interval = 1;
+            else if (zoom >= 4) interval = 5;
+
+            const formatCoord = (val, isLat) => {
+                const absVal = Math.abs(val);
+                const deg = Math.floor(absVal);
+                const min = Math.round((absVal - deg) * 60);
+                const dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
+                return `${deg}&deg; ${min.toString().padStart(2, '0')}' ${dir}`;
+            };
+
+            const lineStyle = {
+                color: 'rgba(79, 195, 247, 0.4)',
+                weight: 1,
+                dashArray: '4 6',
+                interactive: false
+            };
+
+            const startLat = Math.floor(bounds.getSouth() / interval) * interval;
+            const endLat = Math.ceil(bounds.getNorth() / interval) * interval;
+            const startLng = Math.floor(bounds.getWest() / interval) * interval;
+            const endLng = Math.ceil(bounds.getEast() / interval) * interval;
+
+            for (let lat = startLat; lat <= endLat; lat += interval) {
+                if (lat < -90 || lat > 90) continue;
+                L.polyline([[lat, startLng], [lat, endLng]], lineStyle).addTo(graticuleLayer);
+                
+                L.marker([lat, bounds.getWest()], {
+                    icon: L.divIcon({
+                        className: 'graticule-label',
+                        html: `<div style="padding-left: 12px; margin-top: -8px;">${formatCoord(lat, true)}</div>`,
+                        iconSize: [80, 20],
+                        iconAnchor: [0, 0]
+                    }),
+                    interactive: false
+                }).addTo(graticuleLayer);
+            }
+
+            for (let lng = startLng; lng <= endLng; lng += interval) {
+                L.polyline([[startLat, lng], [endLat, lng]], lineStyle).addTo(graticuleLayer);
+                
+                let wrappedLng = ((lng + 180) % 360 + 360) % 360 - 180;
+                
+                L.marker([bounds.getSouth(), lng], {
+                    icon: L.divIcon({
+                        className: 'graticule-label',
+                        html: `<div style="padding-bottom: 8px;">${formatCoord(wrappedLng, false)}</div>`,
+                        iconSize: [80, 30],
+                        iconAnchor: [40, 30]
+                    }),
+                    interactive: false
+                }).addTo(graticuleLayer);
+            }
+        };
+
+        map.on('moveend', drawGraticule);
+        map.on('overlayadd', (e) => {
+            if (e.layer === graticuleLayer) drawGraticule();
+        });
+        drawGraticule();
+
         loadHistoryTracks();
 
         L.control.layers(null, {
-            "AIS Trails": aisTrailLayer
+            "AIS Trails": aisTrailLayer,
+            "Mercusuar (Lighthouses)": lighthouseLayer,
+            "Grid Koordinat (Graticule)": graticuleLayer
         }, { collapsed: false, position: "topright" }).addTo(map);
 
         const toggleButtons = document.querySelectorAll(`[data-map-layer]`);

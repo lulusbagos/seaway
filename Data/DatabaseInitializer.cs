@@ -157,8 +157,8 @@ public static class DatabaseInitializer
               );
 
                UPDATE tbl_m_unit
-              SET unit_code = 'Ganesha BS 16',
-                  unit_name = 'Ganesha BS 16',
+              SET unit_code = 'Ganesha Bintang Sangkulirang XVI',
+                  unit_name = 'Ganesha Bintang Sangkulirang XVI',
                   device_idno = '488260671512',
                   session_token = '7725f0b6e9404a5d86bb6ccab539db9e',
                   gps_status_url = 'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
@@ -166,20 +166,31 @@ public static class DatabaseInitializer
               WHERE device_idno = '221083241090' OR device_idno = '488260671512';
 
               UPDATE tbl_m_unit
-              SET unit_code = 'Ganesha BS 17',
-                  unit_name = 'Ganesha BS 17',
-                  device_idno = '488260670812',
-                  session_token = '7725f0b6e9404a5d86bb6ccab539db9e',
-                  gps_status_url = 'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
-                  camera_url = 'https://lenzguard.com/808gps/open/player/video.html?lang=en&devIdno=488260670812&account=GLJ01&password=123456'
+              SET unit_code = 'Ganesha Bintang Sangkulirang XVII',
+                  unit_name = 'Ganesha Bintang Sangkulirang XVII'
               WHERE device_idno = '488260670812';
+
+              UPDATE tbl_m_unit
+              SET unit_code = 'Bintang Sangkulirang I',
+                  unit_name = 'Bintang Sangkulirang I'
+              WHERE device_idno = '488260670612';
+
+              UPDATE tbl_m_unit
+              SET unit_code = 'Bintang Sangkulirang III',
+                  unit_name = 'Bintang Sangkulirang III'
+              WHERE device_idno = '148826051581';
+
+              UPDATE tbl_m_unit
+              SET unit_code = 'Gadjah Lampung I',
+                  unit_name = 'Gadjah Lampung I'
+              WHERE device_idno = '488260671412';
 
               INSERT INTO tbl_m_unit (
                   unit_code, unit_name, device_idno, session_token, gps_status_url, camera_url, unit_image_url, icon_key, unit_type, unit_detail, is_active, is_default
               )
               SELECT
-                  'Ganesha BS 16',
-                  'Ganesha BS 16',
+                  'Ganesha Bintang Sangkulirang XVI',
+                  'Ganesha Bintang Sangkulirang XVI',
                   '488260671512',
                   '7725f0b6e9404a5d86bb6ccab539db9e',
                   'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
@@ -196,8 +207,8 @@ public static class DatabaseInitializer
                   unit_code, unit_name, device_idno, session_token, gps_status_url, camera_url, unit_image_url, icon_key, unit_type, unit_detail, is_active, is_default
               )
               SELECT
-                  'Ganesha BS 17',
-                  'Ganesha BS 17',
+                  'Ganesha Bintang Sangkulirang XVII',
+                  'Ganesha Bintang Sangkulirang XVII',
                   '488260670812',
                   '7725f0b6e9404a5d86bb6ccab539db9e',
                   'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
@@ -205,7 +216,7 @@ public static class DatabaseInitializer
                   '/image/ship.png',
                   'ship',
                   'Merchant Vessel',
-                  'Live GPS/AIS unit Ganesha BS 17 untuk monitoring operasional.',
+                  'Live GPS/AIS unit Ganesha Bintang Sangkulirang XVII untuk monitoring operasional.',
                   true,
                   false
               WHERE NOT EXISTS (SELECT 1 FROM tbl_m_unit WHERE device_idno = '488260670812');
@@ -214,8 +225,8 @@ public static class DatabaseInitializer
                   unit_code, unit_name, device_idno, session_token, gps_status_url, camera_url, unit_image_url, icon_key, unit_type, unit_detail, is_active, is_default
               )
               SELECT
-                  'Bintang Sangkulirang 01',
-                  'Bintang Sangkulirang 01',
+                  'Bintang Sangkulirang I',
+                  'Bintang Sangkulirang I',
                   '488260670612',
                   '7725f0b6e9404a5d86bb6ccab539db9e',
                   'https://lenzguard.com/StandardApiAction_getDeviceStatus.action',
@@ -223,7 +234,7 @@ public static class DatabaseInitializer
                   '/image/ship.png',
                   'ship',
                   'Merchant Vessel',
-                  'Live GPS/AIS unit Bintang Sangkulirang 01 untuk monitoring operasional.',
+                  'Live GPS/AIS unit Bintang Sangkulirang I untuk monitoring operasional.',
                   true,
                   false
               WHERE NOT EXISTS (SELECT 1 FROM tbl_m_unit WHERE device_idno = '488260670612');

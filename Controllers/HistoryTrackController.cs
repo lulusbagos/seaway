@@ -14,4 +14,15 @@ public class HistoryTrackController(HistoryTrackService historyTrackService) : C
         var historyData = await historyTrackService.GetHistoryForLast48HoursAsync();
         return Json(historyData);
     }
+
+    [AllowAnonymous]
+    [HttpGet("dump")]
+    public async Task<IActionResult> Dump([FromServices] SeaWay.Data.SeaWayDbContext db)
+    {
+        var count = db.HistoryTracks.Count();
+        if (count == 0) return Ok("Empty");
+        var min = db.HistoryTracks.Min(x => x.RecordedAt);
+        var max = db.HistoryTracks.Max(x => x.RecordedAt);
+        return Ok($"Count: {count}, Min: {min}, Max: {max}");
+    }
 }

@@ -10,10 +10,10 @@ public class SeawayDemoDataService
         liveUnit ??= new UnitStatusSnapshotViewModel
         {
             DeviceId = "488260671512",
-            UnitCode = "Ganesha BS 16",
-            VehicleId = "Ganesha BS 16",
-            Name = "Ganesha BS 16",
-            UnitName = "Ganesha BS 16",
+            UnitCode = "Ganesha Bintang Sangkulirang XVI",
+            VehicleId = "Ganesha Bintang Sangkulirang XVI",
+            Name = "Ganesha Bintang Sangkulirang XVI",
+            UnitName = "Ganesha Bintang Sangkulirang XVI",
             UnitDetail = "Live GPS/AIS unit untuk monitoring operasional SeaWay.",
             Status = "online",
             IsOnline = true,

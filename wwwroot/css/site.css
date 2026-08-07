@@ -4539,3 +4539,53 @@ a {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
 }
+
+/* Styling for Leaflet Layer Control */
+.leaflet-control-layers {
+  background: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(0, 240, 255, 0.25) !important;
+  border-radius: 12px !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+  padding: 10px 14px !important;
+  font-family: "Poppins", "Manrope", sans-serif !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+}
+
+.leaflet-control-layers-expanded {
+  padding: 10px 14px !important;
+  background: rgba(15, 23, 42, 0.9) !important;
+}
+
+.leaflet-control-layers-list label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+  cursor: pointer !important;
+  transition: color 0.2s ease;
+}
+
+.leaflet-control-layers-list label:hover {
+  color: #00f0ff !important;
+}
+
+.leaflet-control-layers-list label:last-child {
+  margin-bottom: 0 !important;
+}
+
+.leaflet-control-layers-selector {
+  margin: 0 !important;
+  width: 16px !important;
+  height: 16px !important;
+  accent-color: #00f0ff !important;
+  cursor: pointer !important;
+}
+
+.leaflet-control-layers-separator {
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  margin: 8px 0 !important;
+}
