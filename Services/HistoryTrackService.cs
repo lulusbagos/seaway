@@ -7,22 +7,53 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
 {
     public async Task<List<UnitHistoryTrackViewModel>> GetHistoryForLast48HoursAsync()
     {
+        return await GetHistoryAsync(null, null, null);
+    }
+
+    public async Task<List<UnitHistoryTrackViewModel>> GetHistoryAsync(DateTime? start = null, DateTime? end = null, string? unitCode = null)
+    {
         var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddHours(-48), DateTimeKind.Unspecified);
-        var tracks = await dbContext.HistoryTracks
-            .Where(t => t.RecordedAt >= cutoff)
+        var query = dbContext.HistoryTracks.AsQueryable();
+
+        if (start.HasValue)
+        {
+            query = query.Where(t => t.RecordedAt >= start.Value);
+        }
+        else
+        {
+            query = query.Where(t => t.RecordedAt >= cutoff);
+        }
+
+        if (end.HasValue)
+        {
+            query = query.Where(t => t.RecordedAt <= end.Value);
+        }
+
+        if (!string.IsNullOrEmpty(unitCode) && !unitCode.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(t => t.UnitCode == unitCode);
+        }
+
+        var tracks = await query
             .OrderBy(t => t.RecordedAt)
             .ToListAsync();
 
-        var activeUnits = await dbContext.UnitMasters.Where(u => u.IsActive).ToListAsync();
+        var activeUnitsQuery = dbContext.UnitMasters.Where(u => u.IsActive);
+        if (!string.IsNullOrEmpty(unitCode) && !unitCode.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            activeUnitsQuery = activeUnitsQuery.Where(u => u.UnitCode == unitCode);
+        }
+        var activeUnits = await activeUnitsQuery.ToListAsync();
+
         var result = new List<UnitHistoryTrackViewModel>();
         var grouped = tracks.GroupBy(t => t.UnitCode).ToDictionary(g => g.Key, g => g.ToList());
 
         foreach (var unitMaster in activeUnits)
         {
-            var unitCode = unitMaster.UnitCode;
+            var code = unitMaster.UnitCode;
             var points = new List<HistoryTrackPointViewModel>();
 
-            if (grouped.TryGetValue(unitCode, out var historyPoints))
+            if (grouped.TryGetValue(code, out var historyPoints))
             {
                 HistoryTrackPointViewModel? lastValidPoint = null;
                 foreach (var p in historyPoints.OrderBy(x => x.RecordedAt))
@@ -59,52 +90,62 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
                 }
             }
 
-            try
+            // Only add current live position if the filter end date is null or recent/future
+            bool shouldAddLivePoint = true;
+            if (end.HasValue && end.Value < DateTime.UtcNow.AddMinutes(-30))
             {
-                var currentStatus = await unitStatusService.GetSnapshotForUnitAsync(unitMaster);
-                if (currentStatus != null && currentStatus.Latitude != 0 && currentStatus.Longitude != 0)
-                {
-                    double.TryParse(currentStatus.SpeedLabel?.Replace(" Knot", "").Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var spd);
-                    int.TryParse(currentStatus.Heading?.Replace(" deg", "").Trim(), out var hdg);
+                shouldAddLivePoint = false;
+            }
 
-                    var nowUtc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-                    bool isSpike = false;
-                    if (points.Count > 0)
+            if (shouldAddLivePoint)
+            {
+                try
+                {
+                    var currentStatus = await unitStatusService.GetSnapshotForUnitAsync(unitMaster);
+                    if (currentStatus != null && currentStatus.Latitude != 0 && currentStatus.Longitude != 0)
                     {
-                        var lastPt = points.Last();
-                        double dist = HaversineDistanceMeters(lastPt.Latitude, lastPt.Longitude, currentStatus.Latitude, currentStatus.Longitude);
-                        double hours = (nowUtc - lastPt.RecordedAt).TotalHours;
-                        if (hours <= 0) hours = 0.01;
-                        double calcSpeedKnots = (dist / 1852.0) / hours;
-                        if (calcSpeedKnots >= 100)
+                        double.TryParse(currentStatus.SpeedLabel?.Replace(" Knot", "").Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var spd);
+                        int.TryParse(currentStatus.Heading?.Replace(" deg", "").Trim(), out var hdg);
+
+                        var nowUtc = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+                        bool isSpike = false;
+                        if (points.Count > 0)
                         {
-                            isSpike = true;
+                            var lastPt = points.Last();
+                            double dist = HaversineDistanceMeters(lastPt.Latitude, lastPt.Longitude, currentStatus.Latitude, currentStatus.Longitude);
+                            double hours = (nowUtc - lastPt.RecordedAt).TotalHours;
+                            if (hours <= 0) hours = 0.01;
+                            double calcSpeedKnots = (dist / 1852.0) / hours;
+                            if (calcSpeedKnots >= 100)
+                            {
+                                isSpike = true;
+                            }
+                        }
+
+                        if (!isSpike)
+                        {
+                            points.Add(new HistoryTrackPointViewModel
+                            {
+                                Latitude = currentStatus.Latitude,
+                                Longitude = currentStatus.Longitude,
+                                SpeedKnots = spd,
+                                HeadingDeg = hdg,
+                                RecordedAt = nowUtc,
+                                TimeLabel = "Sekarang"
+                            });
                         }
                     }
-
-                    if (!isSpike)
-                    {
-                        points.Add(new HistoryTrackPointViewModel
-                        {
-                            Latitude = currentStatus.Latitude,
-                            Longitude = currentStatus.Longitude,
-                            SpeedKnots = spd,
-                            HeadingDeg = hdg,
-                            RecordedAt = nowUtc,
-                            TimeLabel = "Sekarang"
-                        });
-                    }
                 }
-            }
-            catch
-            {
-                // ignore
+                catch
+                {
+                    // ignore
+                }
             }
 
             // Generate a color based on the unit name hash
             string[] trackColors = { "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#14b8a6", "#3f6212", "#0369a1", "#4f46e5", "#be123c" };
             int hash = 0;
-            string nameForHash = unitMaster.UnitName ?? unitCode;
+            string nameForHash = unitMaster.UnitName ?? code;
             for (int i = 0; i < nameForHash.Length; i++)
             {
                 hash = (hash << 5) - hash + nameForHash[i];
@@ -115,8 +156,8 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
             result.Add(new UnitHistoryTrackViewModel
             {
                 UnitId = unitMaster.UnitId,
-                UnitCode = unitCode,
-                UnitName = unitMaster.UnitName,
+                UnitCode = code,
+                UnitName = unitMaster.UnitName ?? code,
                 Color = generatedColor,
                 Points = points
             });

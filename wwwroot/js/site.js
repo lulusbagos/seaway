@@ -939,6 +939,21 @@
                 return;
             }
 
+            liveUnitLayer.clearLayers();
+            liveTrailLayer.clearLayers();
+
+            const unitSelect = document.getElementById("historyUnitSelect");
+            const selectedUnitCode = unitSelect ? unitSelect.value : "all";
+            if (selectedUnitCode !== "all" && unit.unitCode !== selectedUnitCode) {
+                return;
+            }
+
+            const status = (unit.status || "online").toLowerCase();
+            const activeFilter = typeof activeShipFilter !== "undefined" ? activeShipFilter : "all";
+            if (activeFilter !== "all" && status !== activeFilter) {
+                return;
+            }
+
             if (!isFetchingLighthouses) {
                 const distance = lastLighthouseFetchPos 
                     ? map.distance([unit.latitude, unit.longitude], lastLighthouseFetchPos) 
@@ -947,9 +962,6 @@
                     fetchLighthouses(unit.latitude, unit.longitude);
                 }
             }
-
-            liveUnitLayer.clearLayers();
-            liveTrailLayer.clearLayers();
 
             if (liveUnitHistory.length === 0 && Array.isArray(unit.trail)) {
                 liveUnitHistory = unit.trail
@@ -1228,6 +1240,7 @@
             const marker = L.marker([signal.latitude, signal.longitude], { icon: buildIcon(signalObject) });
             marker.on("click", () => openVesselCameraModal(signalObject));
 
+            let polyline = null;
             if (Array.isArray(signal.trail) && signal.trail.length > 1) {
                 const trailPoints = signal.trail
                     .filter((point) => typeof point.lat === "number" && typeof point.lng === "number")
@@ -1235,18 +1248,18 @@
 
                 if (trailPoints.length > 1) {
                     const smoothTrailPoints = getCurvePoints(trailPoints);
-                    L.polyline(smoothTrailPoints, {
+                    polyline = L.polyline(smoothTrailPoints, {
                         color: signal.status === "alert" ? "#ff6f5e" : signal.status === "warning" ? "#ffb84d" : "#2ecf86",
                         weight: 3,
                         opacity: 0.78,
                         dashArray: "8 10",
                         lineCap: "round",
                         lineJoin: "round"
-                    }).addTo(aisTrailLayer);
+                    });
                 }
             }
 
-            vesselMarkers.push({ marker, status: (signal.status || "online").toLowerCase(), signalObject: signalObject });
+            vesselMarkers.push({ marker, polyline, status: (signal.status || "online").toLowerCase(), signalObject: signalObject });
         });
 
         if (liveUnitSeed) {
@@ -1306,13 +1319,26 @@
             if (typeof vesselLayer.clearLayers === "function") {
                 vesselLayer.clearLayers();
             }
+            if (typeof aisTrailLayer.clearLayers === "function") {
+                aisTrailLayer.clearLayers();
+            }
 
-            vesselMarkers.forEach(({ marker, status }) => {
+            const unitSelect = document.getElementById("historyUnitSelect");
+            const selectedUnitCode = unitSelect ? unitSelect.value : "all";
+
+            vesselMarkers.forEach(({ marker, polyline, status, signalObject }) => {
                 if (activeShipFilter !== "all" && activeShipFilter !== status) {
                     return;
                 }
 
+                if (selectedUnitCode !== "all" && signalObject.unitCode !== selectedUnitCode) {
+                    return;
+                }
+
                 vesselLayer.addLayer(marker);
+                if (polyline) {
+                    aisTrailLayer.addLayer(polyline);
+                }
             });
 
             fleetRows.forEach((row) => {
@@ -1342,6 +1368,7 @@
             try {
                 const startDateInput = document.getElementById("historyStartDate");
                 const endDateInput = document.getElementById("historyEndDate");
+                const unitSelect = document.getElementById("historyUnitSelect");
 
                 const now = new Date();
                 const past = new Date();
@@ -1355,8 +1382,18 @@
                 }
 
                 let query = "";
-                if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
-                    query = `?start=${startDateInput.value}&end=${endDateInput.value}`;
+                const params = [];
+                if (startDateInput && startDateInput.value) {
+                    params.push(`start=${encodeURIComponent(startDateInput.value)}`);
+                }
+                if (endDateInput && endDateInput.value) {
+                    params.push(`end=${encodeURIComponent(endDateInput.value)}`);
+                }
+                if (unitSelect && unitSelect.value && unitSelect.value !== "all") {
+                    params.push(`unitCode=${encodeURIComponent(unitSelect.value)}`);
+                }
+                if (params.length > 0) {
+                    query = `?${params.join("&")}`;
                 }
 
                 const response = await fetch(`${historyTracksApi}${query}`, { headers: { Accept: "application/json" } });
@@ -1612,6 +1649,17 @@
                         btnIcon.className = "bi bi-search";
                     }
                 });
+            });
+        }
+
+        const historyUnitSelect = document.getElementById("historyUnitSelect");
+        if (historyUnitSelect) {
+            historyUnitSelect.addEventListener("change", () => {
+                loadHistoryTracks();
+                renderVessels();
+                if (liveUnitSeed) {
+                    updateLiveUnitMarker(liveUnitSeed);
+                }
             });
         }
 

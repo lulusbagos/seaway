@@ -70,6 +70,14 @@
                                 <i class="bi bi-clock-history"></i> Histori Track
                             </button>
                             <div class="d-flex align-items-center" style="gap: 4px; padding: 0 10px 0 2px;">
+                                <i class="bi bi-ship text-secondary ms-1 me-1" style="font-size: 0.85rem;"></i>
+                                <select id="historyUnitSelect" class="map-date-input me-2" style="max-width: 120px;" title="Pilih Kapal">
+                                    <option value="all">Semua Kapal</option>
+                                    @foreach (var sig in Model.MapSignals)
+                                    {
+                                        <option value="@sig.UnitCode">@(sig.UnitName ?? sig.Name)</option>
+                                    }
+                                </select>
                                 <i class="bi bi-calendar-range text-secondary ms-1 me-1"></i>
                                 <input type="date" id="historyStartDate" class="map-date-input" title="Tanggal Awal">
                                 <span class="text-secondary" style="font-size: 0.8rem;">-</span>
@@ -345,6 +353,18 @@
         }
         .map-date-input::-webkit-calendar-picker-indicator:hover {
             opacity: 1;
+        }
+        select.map-date-input {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 14px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Cpath fill='%23f8fafc' d='M0 2l4 4 4-4z'/%3E%3C/svg%3E") no-repeat right 2px center;
+            background-size: 8px 8px;
+        }
+        select.map-date-input option {
+            background-color: #0f172a;
+            color: #f8fafc;
         }
         
         /* Smooth Marker Movement */
