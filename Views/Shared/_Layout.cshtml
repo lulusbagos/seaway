@@ -62,7 +62,11 @@
                 <nav class="sidebar-nav">
                     <a class="sidebar-link @(controllerName == "Dashboard" ? "active" : null)" asp-controller="Dashboard" asp-action="Index">
                         <i class="bi bi-broadcast-pin"></i>
-                        <span>Command Center</span>
+                        <span>Live Monitor</span>
+                    </a>
+                    <a class="sidebar-link @(controllerName == "Replay" ? "active" : null)" asp-controller="Replay" asp-action="Index">
+                        <i class="bi bi-play-circle"></i>
+                        <span>Histori & Replay</span>
                     </a>
                     <a class="sidebar-link @(controllerName == "Fleet" ? "active" : null)" asp-controller="Fleet" asp-action="Index">
                         <i class="bi bi-life-preserver"></i>

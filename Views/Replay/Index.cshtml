@@ -1,0 +1,304 @@
+@using System.Text.Json
+@model SeaWay.Models.ViewModels.ReplayViewModel
+
+@{
+    ViewData["Title"] = "Histori & Replay Armada";
+    ViewData["Subtitle"] = "Analisis rute, log lintasan pelayaran, dan simulasi pemutaran visual pergerakan kapal.";
+}
+
+<div class="replay-page-shell">
+    <!-- Top Filter & Control Header -->
+    <header class="replay-header card-panel p-3 mb-3">
+        <div class="replay-header-top">
+            <div class="replay-title-block">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="replay-badge-icon">
+                        <i class="bi bi-play-circle-fill"></i>
+                    </div>
+                    <div>
+                        <h2 class="replay-page-title m-0">Histori & Replay Armada</h2>
+                        <span class="replay-page-desc">Simulasi visual lintasan navigasi dan rekam jejak telemetri armada</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="replay-presets-group">
+                <span class="preset-label text-muted small me-1"><i class="bi bi-lightning-charge-fill text-warning"></i> Preset Cepat:</span>
+                <button type="button" class="preset-pill" data-hours="6">6 Jam</button>
+                <button type="button" class="preset-pill" data-hours="12">12 Jam</button>
+                <button type="button" class="preset-pill active" data-hours="24">24 Jam</button>
+                <button type="button" class="preset-pill" data-hours="72">3 Hari</button>
+                <button type="button" class="preset-pill" data-hours="168">7 Hari</button>
+                <button type="button" class="preset-pill" data-hours="720">30 Hari</button>
+                <button type="button" class="preset-pill" data-hours="all">Semua Riwayat</button>
+            </div>
+        </div>
+
+        <div class="replay-filter-form mt-3 pt-3 border-top border-secondary border-opacity-25">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-3 col-lg-3">
+                    <label for="replayUnitSelect" class="form-label text-muted small fw-bold mb-1">
+                        <i class="bi bi-ship text-info me-1"></i> Pilih Kapal / Armada
+                    </label>
+                    <select id="replayUnitSelect" class="form-select replay-select shadow-none">
+                        <option value="all">Semua Kapal (Multi-Track)</option>
+                        @foreach (var unit in Model.Units)
+                        {
+                            <option value="@unit.UnitCode" selected="@(unit.UnitCode == Model.SelectedUnitCode ? "selected" : null)">
+                                @unit.UnitName (@unit.UnitCode)
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="replayStartDate" class="form-label text-muted small fw-bold mb-1">
+                        <i class="bi bi-calendar-event text-info me-1"></i> Dari Tanggal
+                    </label>
+                    <input type="date" id="replayStartDate" class="form-control replay-input" value="@Model.InitialStartDate" />
+                </div>
+
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label for="replayEndDate" class="form-label text-muted small fw-bold mb-1">
+                        <i class="bi bi-calendar-check text-info me-1"></i> Sampai Tanggal
+                    </label>
+                    <input type="date" id="replayEndDate" class="form-control replay-input" value="@Model.InitialEndDate" />
+                </div>
+
+                <div class="col-12 col-md-3 col-lg-3 d-flex gap-2">
+                    <button type="button" class="btn btn-primary replay-btn-search flex-grow-1" id="btnLoadReplay">
+                        <i class="bi bi-search me-1" id="loadReplayIcon"></i> Tampilkan Rute
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary replay-btn-reset" id="btnResetReplay" title="Reset Rentang Waktu">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </div>
+
+                <div class="col-12 col-lg-2 d-flex justify-content-lg-end gap-1">
+                    <div class="dropdown d-inline-block">
+                        <button class="map-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah Tema Peta">
+                            <i class="bi bi-palette"></i> Tema
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark shadow-sm" style="min-width: 150px; font-size: 0.85rem;">
+                            <li><a class="dropdown-item map-theme-opt" href="#" data-theme="standard"><i class="bi bi-sun me-2"></i>Terang</a></li>
+                            <li><a class="dropdown-item map-theme-opt" href="#" data-theme="dark"><i class="bi bi-moon-stars me-2"></i>Gelap</a></li>
+                            <li><a class="dropdown-item map-theme-opt" href="#" data-theme="satellite"><i class="bi bi-globe me-2"></i>Satelit</a></li>
+                        </ul>
+                    </div>
+                    <button class="map-chip map-chip-action" type="button" id="btnToggleReplayFullscreen" title="Layar Penuh">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Map & HUD Stage Area -->
+    <div class="replay-stage-wrapper position-relative card-panel p-0 overflow-hidden" id="replayStagePanel" style="height: calc(100vh - 225px); min-height: 520px;">
+        <!-- Leaflet Map Canvas -->
+        <div id="replayMapCanvas" class="replay-map-canvas w-100 h-100"></div>
+
+        <!-- Layer Floating Toggles (Top Left on Map) -->
+        <div class="replay-map-layer-controls position-absolute top-0 start-0 m-3 z-3">
+            <div class="map-pill-group">
+                <button class="map-chip map-chip-toggle active" type="button" data-replay-layer="track">
+                    <i class="bi bi-bezier2"></i> Lintasan
+                </button>
+                <button class="map-chip map-chip-toggle active" type="button" data-replay-layer="arrows">
+                    <i class="bi bi-arrow-right-short"></i> Arah Gerak
+                </button>
+                <button class="map-chip map-chip-toggle" type="button" data-replay-layer="bathymetry">
+                    <i class="bi bi-layers"></i> Kedalaman
+                </button>
+                <button class="map-chip map-chip-toggle" type="button" data-replay-layer="graticule">
+                    <i class="bi bi-grid-3x3"></i> Grid
+                </button>
+                <button class="map-chip map-chip-toggle" type="button" data-replay-layer="lighthouse">
+                    <i class="bi bi-lightbulb"></i> Mercusuar
+                </button>
+            </div>
+        </div>
+
+        <!-- Telemetry HUD Floating Card (Top Right on Map) -->
+        <div class="replay-hud-panel position-absolute top-0 end-0 m-3 z-3" id="replayHudCard">
+            <div class="replay-hud-card">
+                <div class="replay-hud-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="replay-hud-eyebrow text-uppercase">Telemetri Replay</div>
+                        <h4 class="replay-hud-vessel-name m-0" id="hudVesselName">-</h4>
+                    </div>
+                    <span class="replay-hud-status-badge" id="hudVesselStatus">ONLINE</span>
+                </div>
+
+                <div class="replay-hud-metrics mt-3">
+                    <div class="row g-2">
+                        <!-- Speed Metric with Gauge -->
+                        <div class="col-6">
+                            <div class="replay-metric-box">
+                                <div class="metric-label"><i class="bi bi-speedometer2 text-info me-1"></i> Kecepatan</div>
+                                <div class="metric-value-wrap d-flex align-items-baseline gap-1">
+                                    <span class="metric-value" id="hudSpeedValue">0.0</span>
+                                    <span class="metric-unit">Knot</span>
+                                </div>
+                                <div class="metric-sub" id="hudSpeedKmh">0.0 km/h</div>
+                            </div>
+                        </div>
+
+                        <!-- Heading Metric with Compass Needle -->
+                        <div class="col-6">
+                            <div class="replay-metric-box">
+                                <div class="metric-label"><i class="bi bi-compass text-warning me-1"></i> Haluan</div>
+                                <div class="metric-value-wrap d-flex align-items-center gap-1">
+                                    <span class="compass-mini-needle" id="hudCompassNeedle">
+                                        <i class="bi bi-cursor-fill"></i>
+                                    </span>
+                                    <span class="metric-value" id="hudHeadingValue">0°</span>
+                                    <span class="metric-unit" id="hudHeadingCompass">N</span>
+                                </div>
+                                <div class="metric-sub" id="hudHeadingDesc">Utara</div>
+                            </div>
+                        </div>
+
+                        <!-- Coordinates -->
+                        <div class="col-12">
+                            <div class="replay-metric-box">
+                                <div class="metric-label"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Koordinat Titik</div>
+                                <div class="metric-coord" id="hudCoordinates">-</div>
+                            </div>
+                        </div>
+
+                        <!-- Time & Progress Stats -->
+                        <div class="col-12">
+                            <div class="replay-metric-box">
+                                <div class="metric-label"><i class="bi bi-clock-history text-success me-1"></i> Waktu Posisi</div>
+                                <div class="metric-time" id="hudTimestamp">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cumulative Stats Strip -->
+                <div class="replay-hud-stats-strip mt-2 pt-2 border-top border-secondary border-opacity-25 d-flex justify-content-between text-center">
+                    <div>
+                        <div class="text-muted" style="font-size: 0.65rem;">JARAK TEMPUH</div>
+                        <div class="fw-bold" style="font-size: 0.82rem; color: #00f0ff;" id="hudTotalDistance">0.0 NM</div>
+                    </div>
+                    <div>
+                        <div class="text-muted" style="font-size: 0.65rem;">MAX SPEED</div>
+                        <div class="fw-bold" style="font-size: 0.82rem; color: #38bdf8;" id="hudMaxSpeed">0.0 Knots</div>
+                    </div>
+                    <div>
+                        <div class="text-muted" style="font-size: 0.65rem;">TITIK SINYAL</div>
+                        <div class="fw-bold" style="font-size: 0.82rem; color: #a78bfa;" id="hudPointCount">0 / 0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Waypoint / Route Log Drawer Toggle (Bottom Right Floating) -->
+        <button type="button" class="btn btn-sm btn-dark replay-drawer-toggle position-absolute end-0 z-3 m-3" id="btnToggleWaypointDrawer" style="bottom: 120px;" title="Lihat Daftar Log Titik Riwayat">
+            <i class="bi bi-list-columns-reverse me-1"></i> Log Rute (<span id="drawerCountBadge">0</span>)
+        </button>
+
+        <!-- Waypoint Drawer Panel -->
+        <div class="replay-waypoint-drawer position-absolute top-0 end-0 h-100 z-4 shadow-lg" id="replayWaypointDrawer">
+            <div class="drawer-header d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-signpost-2-fill text-info"></i>
+                    <h5 class="m-0 fw-bold fs-6">Log Titik Riwayat</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" id="btnCloseWaypointDrawer"></button>
+            </div>
+            <div class="drawer-body p-2" id="waypointListContainer" style="overflow-y: auto; max-height: calc(100% - 60px);">
+                <div class="text-center text-muted p-4 small" id="drawerEmptyNotice">
+                    Belum ada data rute yang dimuat. Silakan klik <b>Tampilkan Rute</b>.
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Glassmorphic Playback Controller Deck (Bottom Center on Map) -->
+        <div class="replay-playback-deck position-absolute bottom-0 start-50 translate-middle-x mb-3 z-3 w-100" style="max-width: 920px; padding: 0 16px;">
+            <div class="playback-deck-shell">
+                <!-- Timeline Scrubber & Time Display -->
+                <div class="playback-timeline-bar mb-2">
+                    <div class="d-flex justify-content-between align-items-center text-muted small mb-1" style="font-size: 0.75rem;">
+                        <span class="timeline-current-time fw-bold text-white" id="playbackTimeCurrent">--:--:--</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span id="playbackProgressPercent" class="text-info fw-bold">0%</span>
+                            <span class="text-secondary">&middot;</span>
+                            <span class="timeline-total-time" id="playbackTimeTotal">Total: 0 jam</span>
+                        </div>
+                    </div>
+                    <div class="timeline-slider-wrapper position-relative">
+                        <input type="range" class="form-range replay-scrubber" id="replayTimeSlider" min="0" max="100" value="0" step="0.1" />
+                        <div class="scrubber-progress-fill" id="scrubberProgressFill"></div>
+                    </div>
+                </div>
+
+                <!-- Control Buttons Row -->
+                <div class="playback-controls-row d-flex justify-content-between align-items-center">
+                    <!-- Left: Camera Lock & Loop Toggles -->
+                    <div class="playback-extra-controls d-flex align-items-center gap-1">
+                        <button type="button" class="deck-btn-icon active" id="btnToggleFollowShip" title="Kamera Mengikuti Kapal (Auto-Follow)">
+                            <i class="bi bi-crosshair2"></i>
+                        </button>
+                        <button type="button" class="deck-btn-icon" id="btnToggleLoop" title="Ulangi Otomatis (Loop)">
+                            <i class="bi bi-repeat"></i>
+                        </button>
+                    </div>
+
+                    <!-- Center: Main Playback Transport Buttons -->
+                    <div class="playback-main-transport d-flex align-items-center gap-2">
+                        <button type="button" class="deck-btn-icon" id="btnPlaybackStepBack" title="Mundur 1 Titik">
+                            <i class="bi bi-skip-backward-fill"></i>
+                        </button>
+                        <button type="button" class="deck-btn-play" id="btnPlaybackPlay" title="Putar / Jeda Simulasi">
+                            <i class="bi bi-play-fill" id="deckPlayIcon"></i>
+                        </button>
+                        <button type="button" class="deck-btn-icon" id="btnPlaybackStepForward" title="Maju 1 Titik">
+                            <i class="bi bi-skip-forward-fill"></i>
+                        </button>
+                        <button type="button" class="deck-btn-icon" id="btnPlaybackStop" title="Hentikan & Kembali ke Awal">
+                            <i class="bi bi-stop-fill"></i>
+                        </button>
+                    </div>
+
+                    <!-- Right: Speed Multiplier Controls -->
+                    <div class="playback-speed-controls d-flex align-items-center gap-1">
+                        <span class="text-muted d-none d-sm-inline" style="font-size: 0.7rem; font-weight: 600;">KECEPATAN:</span>
+                        <div class="speed-pill-group">
+                            <button type="button" class="speed-pill active" data-speed="1">1x</button>
+                            <button type="button" class="speed-pill" data-speed="2">2x</button>
+                            <button type="button" class="speed-pill" data-speed="5">5x</button>
+                            <button type="button" class="speed-pill" data-speed="10">10x</button>
+                            <button type="button" class="speed-pill" data-speed="25">25x</button>
+                            <button type="button" class="speed-pill" data-speed="50">50x</button>
+                            <button type="button" class="speed-pill" data-speed="100">100x</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        window.replayConfig = @Html.Raw(JsonSerializer.Serialize(new
+        {
+            center = new { lat = Model.MapCenterLatitude, lng = Model.MapCenterLongitude, zoom = Model.MapZoom },
+            selectedUnit = Model.SelectedUnitCode,
+            historyApi = "/api/history-tracks",
+            startDate = Model.InitialStartDate,
+            endDate = Model.InitialEndDate
+        }));
+    </script>
+    <script src="~/js/replay.js" asp-append-version="true"></script>
+}

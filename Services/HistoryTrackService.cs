@@ -12,7 +12,7 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
 
     public async Task<List<UnitHistoryTrackViewModel>> GetHistoryAsync(DateTime? start = null, DateTime? end = null, string? unitCode = null)
     {
-        var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddHours(-48), DateTimeKind.Unspecified);
+        var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddHours(-24), DateTimeKind.Unspecified);
         var query = dbContext.HistoryTracks.AsQueryable();
 
         if (start.HasValue)

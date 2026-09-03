@@ -279,6 +279,8 @@
             : L.layerGroup();
         const liveUnitLayer = L.layerGroup().addTo(map);
         const liveTrailLayer = L.layerGroup().addTo(map);
+        const vesselMarkers = [];
+        let activeShipFilter = "all";
 
         const vesselCameraModalEl = document.getElementById("vesselCameraModal");
         const mapPanel = document.querySelector(".map-panel");
@@ -819,6 +821,12 @@
                 vesselCameraFields.openExternalInline.style.opacity = cameraUrl ? "1" : "0.5";
             }
 
+            const replayLinkEl = document.getElementById("vesselCameraReplayLink");
+            if (replayLinkEl) {
+                const code = signal.unitCode || signal.name || "";
+                replayLinkEl.href = `/Replay?unitCode=${encodeURIComponent(code)}`;
+            }
+
             renderPlaybackTrail(signal, Array.isArray(signal.trail) ? signal.trail.length : 1);
             
             const fetchLat = signal.rawLatitude || signal.decimalLatitude || signal.latitude;
@@ -949,7 +957,7 @@
             }
 
             const status = (unit.status || "online").toLowerCase();
-            const activeFilter = typeof activeShipFilter !== "undefined" ? activeShipFilter : "all";
+            const activeFilter = activeShipFilter || "all";
             if (activeFilter !== "all" && status !== activeFilter) {
                 return;
             }
@@ -1126,8 +1134,6 @@
             }
             return 0;
         };
-
-        const vesselMarkers = []; // Hoist declaration so buildIcon can see it if needed, but it's fine here.
 
         const buildIcon = (signal) => {
             const status = (signal.status || "online").toLowerCase();
@@ -1313,7 +1319,6 @@
 
         const vesselFilterButtons = Array.from(document.querySelectorAll("[data-ship-filter]"));
         const fleetRows = Array.from(document.querySelectorAll("[data-fleet-status]"));
-        let activeShipFilter = "all";
 
         const renderVessels = () => {
             if (typeof vesselLayer.clearLayers === "function") {
@@ -1348,13 +1353,14 @@
             });
         };
 
+        aisTrailLayer.addTo(map);
+        vesselLayer.addTo(map);
+        renderVessels();
+
         if (vesselMarkers.length > 0) {
             const group = L.featureGroup(vesselMarkers.map((item) => item.marker));
             map.fitBounds(group.getBounds().pad(0.25));
         }
-
-        aisTrailLayer.addTo(map);
-        vesselLayer.addTo(map);
 
         const overlays = {
             ais: aisTrailLayer,
@@ -1366,35 +1372,18 @@
 
         const loadHistoryTracks = async () => {
             try {
-                const startDateInput = document.getElementById("historyStartDate");
-                const endDateInput = document.getElementById("historyEndDate");
-                const unitSelect = document.getElementById("historyUnitSelect");
-
                 const now = new Date();
-                const past = new Date();
-                past.setDate(now.getDate() - 2);
+                const past = new Date(now.getTime() - 24 * 3600 * 1000); // 24 jam terakhir
 
-                if (startDateInput && !startDateInput.value) {
-                    startDateInput.value = past.toISOString().split('T')[0];
-                }
-                if (endDateInput && !endDateInput.value) {
-                    endDateInput.value = now.toISOString().split('T')[0];
-                }
-
-                let query = "";
-                const params = [];
-                if (startDateInput && startDateInput.value) {
-                    params.push(`start=${encodeURIComponent(startDateInput.value)}`);
-                }
-                if (endDateInput && endDateInput.value) {
-                    params.push(`end=${encodeURIComponent(endDateInput.value)}`);
-                }
+                const params = [
+                    `start=${encodeURIComponent(past.toISOString())}`,
+                    `end=${encodeURIComponent(now.toISOString())}`
+                ];
+                const unitSelect = document.getElementById("historyUnitSelect");
                 if (unitSelect && unitSelect.value && unitSelect.value !== "all") {
                     params.push(`unitCode=${encodeURIComponent(unitSelect.value)}`);
                 }
-                if (params.length > 0) {
-                    query = `?${params.join("&")}`;
-                }
+                const query = `?${params.join("&")}`;
 
                 const response = await fetch(`${historyTracksApi}${query}`, { headers: { Accept: "application/json" } });
                 if (!response.ok) return;
@@ -1423,31 +1412,21 @@
                     const unitName = escapeHtml(unitTrack.unitName || unitTrack.unitCode || "Unit");
                     const trackColor = getTrackColor(unitName);
 
-                    // Find live signal ship position on the map
                     const liveSignal = signals.find(s => (s.unitCode && s.unitCode === unitTrack.unitCode) || (s.unitName && s.unitName === unitTrack.unitName) || (s.name && s.name === unitTrack.unitName));
 
                     const latLngs = [];
 
-                    // 1. Add historical points recorded in the past
                     unitTrack.points.forEach((pt) => {
                         const ptLat = parseFloat(pt.latitude || pt.lat);
                         const ptLng = parseFloat(pt.longitude || pt.lng);
                         
                         if (!isNaN(ptLat) && !isNaN(ptLng)) {
                             newHeatPts.push([ptLat, ptLng, 1]);
-                            
-                            if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
-                                const dLat = Math.abs(ptLat - liveSignal.latitude);
-                                const dLng = Math.abs(ptLng - liveSignal.longitude);
-                                if (dLat < 0.0005 && dLng < 0.0005) {
-                                    return;
-                                }
-                            }
                             latLngs.push([ptLat, ptLng]);
                         }
                     });
 
-                    // 2. Head of track line is ALWAYS the current live ship position
+                    // 2. Add current live position
                     if (liveSignal && typeof liveSignal.latitude === "number" && typeof liveSignal.longitude === "number") {
                         latLngs.push([liveSignal.latitude, liveSignal.longitude]);
                     }
@@ -1455,37 +1434,28 @@
                     if (latLngs.length < 2) return;
 
                     const smoothLatLngs = getCurvePoints(latLngs);
-                    if (smoothLatLngs.length < 2) return;
 
-                    // 3. Sleek contrast outline (6px width)
+                    // Track Outline
                     L.polyline(smoothLatLngs, {
-                        className: 'history-track-outline',
-                        color: "#ffffff",
+                        color: "#0f172a",
                         weight: 6,
-                        opacity: 0.9,
+                        opacity: 0.6,
                         lineCap: "round",
-                        lineJoin: "round"
+                        lineJoin: "round",
+                        className: "history-track-outline"
                     }).addTo(historyTrackLayer);
 
-                    // 4. Main track line (3.2px width) - SMOOTH LINE WITHOUT OVERLAPPING CIRCLES!
-                    const mainPolyline = L.polyline(smoothLatLngs, {
-                        className: 'history-track-main',
+                    // Core Track Line
+                    L.polyline(smoothLatLngs, {
                         color: trackColor,
-                        weight: 3.2,
-                        opacity: 1,
+                        weight: 3.5,
+                        opacity: 0.95,
+                        dashArray: "1 0",
                         lineCap: "round",
                         lineJoin: "round"
                     }).addTo(historyTrackLayer);
 
-                    const pointCount = unitTrack.points.length;
-                    mainPolyline.bindTooltip(
-                        `<div style="background:#0f172a; color:#ffffff; font-family: monospace; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; border: 1px solid #00f0ff; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">` +
-                        `<strong style="color: #00f0ff;">${unitName}</strong><br/>` +
-                        `<span style="opacity:0.9;">Lintasan Histori Real-Time - ${pointCount} Titik (15-Min)</span></div>`,
-                        { sticky: true }
-                    );
-
-                    // 5. Render ONLY 1 marker at the start of 24h trajectory (NO dense overlapping circles along line!)
+                    // Start Marker
                     if (unitTrack.points.length > 0) {
                         const startPt = unitTrack.points[0];
                         const startMarker = L.circleMarker([startPt.latitude, startPt.longitude], {
@@ -1499,7 +1469,7 @@
                         const timeText = startPt.timeLabel || (startPt.recordedAt ? startPt.recordedAt.substring(11, 16) : "");
                         startMarker.bindTooltip(
                             `<div style="font-size:0.8rem; line-height: 1.4; background:#0f172a; color:#ffffff; padding:4px 8px; border-radius:6px; border:1px solid #00f0ff; box-shadow:0 4px 12px rgba(0,0,0,0.6);">` +
-                            `<strong style="color:#00f0ff;">${unitName}</strong> (🚩 Titik Awal 48 Jam)<br/>` +
+                            `<strong style="color:#00f0ff;">${unitName}</strong> (🚩 Titik Awal 24 Jam)<br/>` +
                             `🕒 <b>${timeText}</b> &middot; ⚓ <b>${startPt.speedKnots} Knot</b> (${startPt.headingDeg}°)</div>`,
                             { direction: "top", opacity: 0.95 }
                         );

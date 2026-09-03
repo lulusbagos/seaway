@@ -66,28 +66,6 @@
 
                     <div class="map-controls-row">
                         <div class="map-pill-group">
-                            <button class="map-chip map-chip-toggle active" type="button" data-map-layer="history">
-                                <i class="bi bi-clock-history"></i> Histori Track
-                            </button>
-                            <div class="d-flex align-items-center" style="gap: 4px; padding: 0 10px 0 2px;">
-                                <i class="bi bi-ship text-secondary ms-1 me-1" style="font-size: 0.85rem;"></i>
-                                <select id="historyUnitSelect" class="map-date-input me-2" style="max-width: 120px;" title="Pilih Kapal">
-                                    <option value="all">Semua Kapal</option>
-                                    @foreach (var sig in Model.MapSignals)
-                                    {
-                                        <option value="@sig.UnitCode">@(sig.UnitName ?? sig.Name)</option>
-                                    }
-                                </select>
-                                <i class="bi bi-calendar-range text-secondary ms-1 me-1"></i>
-                                <input type="date" id="historyStartDate" class="map-date-input" title="Tanggal Awal">
-                                <span class="text-secondary" style="font-size: 0.8rem;">-</span>
-                                <input type="date" id="historyEndDate" class="map-date-input" title="Tanggal Akhir">
-                                <button class="btn btn-sm btn-primary rounded-pill p-0 ms-1" id="btnFilterHistory" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;" title="Filter Histori"><i class="bi bi-search" style="font-size: 0.7rem;"></i></button>
-                                <button class="btn btn-sm btn-success rounded-pill p-0 ms-1" id="btnPlayHistory" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;" title="Putar Animasi Kapal"><i class="bi bi-play-fill" style="font-size: 1rem;"></i></button>
-                            </div>
-                        </div>
-
-                        <div class="map-pill-group">
                             <button class="map-chip map-chip-toggle" type="button" id="btnToggleWeatherCloud">
                                 <i class="bi bi-cloud-sun"></i> Cuaca
                             </button>
@@ -100,6 +78,12 @@
                             <button class="map-chip map-chip-toggle" type="button" data-map-layer="heatmap">
                                 <i class="bi bi-fire"></i> Heatmap
                             </button>
+                        </div>
+
+                        <div class="map-pill-group">
+                            <a href="/Replay" class="map-chip text-decoration-none" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(2, 132, 199, 0.3) 100%); border-color: rgba(0, 240, 255, 0.4); color: #00f0ff;">
+                                <i class="bi bi-play-circle-fill"></i> Buka Replay Center
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -209,13 +193,14 @@
                             </div>
                         </div>
                         <div class="summary-card accent">
-                            <div class="summary-label">Playback Histori Lintasan</div>
-                            <div class="playback-row">
-                                <input id="vesselPlaybackSlider" class="playback-slider" type="range" min="1" max="4" value="4" step="1" />
-                                <div class="playback-meta">
-                                    <span id="vesselPlaybackPoint">4 / 4</span>
-                                    <span id="vesselPlaybackTime">Terbaru</span>
-                                </div>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div class="summary-label m-0">Histori & Replay Rute</div>
+                                <a id="vesselCameraReplayLink" class="badge-soft live text-decoration-none py-1 px-2" href="/Replay" target="_blank" style="font-size: 0.72rem; cursor: pointer;">
+                                    <i class="bi bi-play-circle-fill me-1"></i> Buka di Replay
+                                </a>
+                            </div>
+                            <div class="summary-note text-muted small">
+                                Analisis lintasan rute lengkap, telemetri, dan simulasi pemutaran visual pergerakan unit armada.
                             </div>
                         </div>
                         <div class="summary-card">
