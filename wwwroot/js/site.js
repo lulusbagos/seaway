@@ -188,13 +188,9 @@
         }
         const heatmapLayer = typeof L.heatLayer === "function" ? L.heatLayer(heatmapPoints, { radius: 25, blur: 15, maxZoom: 14 }) : L.layerGroup();
 
-        let currentTheme = localStorage.getItem("seaway_map_theme") || "standard";
-        if (!baseLayers[currentTheme]) {
-            currentTheme = "standard";
-        }
+        let currentTheme = "standard";
 
         baseLayers[currentTheme].addTo(map);
-        seamapLayer.addTo(map);
         document.body.setAttribute("data-map-theme", currentTheme);
 
         document.querySelectorAll(".map-theme-opt").forEach(opt => {
@@ -209,7 +205,9 @@
                 localStorage.setItem("seaway_map_theme", newTheme);
                 document.body.setAttribute("data-map-theme", newTheme);
                 
-                seamapLayer.bringToFront();
+                if (map.hasLayer(seamapLayer)) {
+                    seamapLayer.bringToFront();
+                }
             });
         });
 
@@ -235,10 +233,10 @@
         let fleetMarineMap = {};
         
         const aisTrailLayer = L.layerGroup();
-        const historyTrackLayer = L.layerGroup().addTo(map);
-        const historyPlaybackLayer = L.layerGroup().addTo(map);
-        const lighthouseLayer = L.layerGroup().addTo(map);
-        const graticuleLayer = L.layerGroup().addTo(map);
+        const historyTrackLayer = L.layerGroup();
+        const historyPlaybackLayer = L.layerGroup();
+        const lighthouseLayer = L.layerGroup();
+        const graticuleLayer = L.layerGroup();
         const fetchedLighthouses = new Set();
         let lastLighthouseFetchPos = null;
         let isFetchingLighthouses = false;
@@ -962,7 +960,7 @@
                 return;
             }
 
-            if (!isFetchingLighthouses) {
+            if (map.hasLayer(lighthouseLayer) && !isFetchingLighthouses) {
                 const distance = lastLighthouseFetchPos 
                     ? map.distance([unit.latitude, unit.longitude], lastLighthouseFetchPos) 
                     : Infinity;
@@ -1353,7 +1351,6 @@
             });
         };
 
-        aisTrailLayer.addTo(map);
         vesselLayer.addTo(map);
         renderVessels();
 
@@ -1567,6 +1564,12 @@
         map.on('moveend', drawGraticule);
         map.on('overlayadd', (e) => {
             if (e.layer === graticuleLayer) drawGraticule();
+            if (e.layer === lighthouseLayer) {
+                const sourceUnit = currentSignal || liveUnitSeed;
+                if (sourceUnit && typeof sourceUnit.latitude === "number" && typeof sourceUnit.longitude === "number") {
+                    fetchLighthouses(sourceUnit.latitude, sourceUnit.longitude);
+                }
+            }
         });
         drawGraticule();
 
@@ -1640,6 +1643,7 @@
                     isPlayingHistory = false;
                     cancelAnimationFrame(historyAnimFrame);
                     historyPlaybackLayer.clearLayers();
+                    map.removeLayer(historyPlaybackLayer);
                     btnPlayHistory.innerHTML = '<i class="bi bi-play-fill" style="font-size: 1rem;"></i>';
                     btnPlayHistory.classList.replace("btn-danger", "btn-success");
                     vesselLayer.addTo(map);
@@ -1658,6 +1662,7 @@
                 map.removeLayer(vesselLayer);
                 map.removeLayer(liveUnitLayer);
                 historyPlaybackLayer.clearLayers();
+                historyPlaybackLayer.addTo(map);
                 historyAnimatedMarkers.length = 0;
 
                 window.loadedHistoryTracks.forEach(trackObj => {
@@ -1732,6 +1737,7 @@
                         setTimeout(() => {
                             if (!isPlayingHistory) {
                                 historyPlaybackLayer.clearLayers();
+                                map.removeLayer(historyPlaybackLayer);
                                 vesselLayer.addTo(map);
                                 liveUnitLayer.addTo(map);
                             }
@@ -1886,6 +1892,30 @@
                 }
             });
         }
+
+        // Ventusky Full Meteorological Suite Integration
+        if (window.VentuskyWeatherEngine) {
+            window.VentuskyWeatherEngine.init(map, {
+                openMeteoApi: "/api/weather-proxy",
+                windEnabled: false,
+                rasterEnabled: false,
+                activeParameter: null
+            });
+            window.seaWayVentusky = window.VentuskyWeatherEngine;
+            window.seaWayWindInstance = window.VentuskyWeatherEngine.windLayer;
+        }
+
+        const btnToggleWindFlow = document.getElementById("btnToggleWindFlow");
+        if (btnToggleWindFlow) {
+            btnToggleWindFlow.addEventListener("click", () => {
+                if (window.VentuskyWeatherEngine?.windLayer) {
+                    const isActive = window.VentuskyWeatherEngine.windLayer.toggle();
+                    btnToggleWindFlow.classList.toggle("active", isActive);
+                }
+            });
+        }
+
+
 
         // Fullscreen Toggle Handlers
         const btnMapFullscreen = document.getElementById("btnToggleMapFullscreen");
@@ -2046,6 +2076,56 @@
 
         setTimeout(runSmartAlertScanner, 1500);
         setInterval(runSmartAlertScanner, 30000);
+
+        // External Deck Layers Drawer Controller
+        const btnToggleDeckLayers = document.getElementById("btnToggleDeckLayers");
+        const deckLayersDrawer = document.getElementById("deckLayersDrawer");
+        const hudActiveBadge = document.getElementById("hudActiveLayersBadge");
+
+        const updateActiveLayersBadge = () => {
+            if (!hudActiveBadge) return;
+            let activeCount = 0;
+            if (activeShipFilter && activeShipFilter !== "all") activeCount++;
+            document.querySelectorAll("#deckLayersDrawer [data-map-layer].active").forEach(() => activeCount++);
+            document.querySelectorAll("#deckLayersDrawer [data-ventusky-param].active").forEach(() => activeCount++);
+            if (document.getElementById("btnToggleWindFlow")?.classList.contains("active")) activeCount++;
+            if (document.getElementById("btnToggleWeatherCloud")?.classList.contains("active")) activeCount++;
+            if (document.getElementById("btnToggleMarineWave")?.classList.contains("active")) activeCount++;
+            hudActiveBadge.textContent = activeCount;
+        };
+
+        if (btnToggleDeckLayers && deckLayersDrawer) {
+            const isInitiallyCollapsed = localStorage.getItem("seaway_deck_layers_collapsed") === "true";
+            if (isInitiallyCollapsed) {
+                deckLayersDrawer.classList.add("is-collapsed");
+                btnToggleDeckLayers.classList.add("is-collapsed");
+                btnToggleDeckLayers.setAttribute("aria-expanded", "false");
+            }
+
+            btnToggleDeckLayers.addEventListener("click", () => {
+                const isCollapsed = deckLayersDrawer.classList.toggle("is-collapsed");
+                btnToggleDeckLayers.classList.toggle("is-collapsed", isCollapsed);
+                btnToggleDeckLayers.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+                localStorage.setItem("seaway_deck_layers_collapsed", isCollapsed ? "true" : "false");
+                setTimeout(() => {
+                    if (window.seaWayMapInstance) {
+                        window.seaWayMapInstance.invalidateSize();
+                    }
+                }, 300);
+            });
+
+            deckLayersDrawer.addEventListener("click", (e) => {
+                if (e.target.closest(".deck-layer-chip")) {
+                    setTimeout(updateActiveLayersBadge, 100);
+                }
+            });
+
+            document.querySelector(".deck-segmented-group")?.addEventListener("click", () => {
+                setTimeout(updateActiveLayersBadge, 100);
+            });
+
+            updateActiveLayersBadge();
+        }
 
         renderVessels();
         loadCurrentWeather(lat, lng);

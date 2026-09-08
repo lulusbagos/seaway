@@ -87,4 +87,41 @@ public class WeatherProxyController(IHttpClientFactory httpClientFactory, IMemor
             return StatusCode(500, "Failed to fetch marine data.");
         }
     }
+
+    [HttpGet("air-quality")]
+    public async Task<IActionResult> GetAirQuality([FromQuery] string latitude, [FromQuery] string longitude, [FromQuery] string? current = "us_aqi,pm2_5,pm10", [FromQuery] string? timezone = "auto")
+    {
+        if (string.IsNullOrWhiteSpace(latitude) || string.IsNullOrWhiteSpace(longitude))
+        {
+            return BadRequest("Missing required parameters.");
+        }
+
+        var paramCurrent = string.IsNullOrWhiteSpace(current) ? "us_aqi,pm2_5,pm10" : current;
+        var cacheKey = $"AirQualityProxy_{latitude}_{longitude}_{paramCurrent}_{timezone}";
+        if (memoryCache.TryGetValue(cacheKey, out string? cachedResponse))
+        {
+            return Content(cachedResponse!, "application/json");
+        }
+
+        try
+        {
+            var client = httpClientFactory.CreateClient();
+            var url = $"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={latitude}&longitude={longitude}&current={paramCurrent}&timezone={timezone ?? "auto"}";
+
+            using var response = await client.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+
+            var content = await response.Content.ReadAsStringAsync();
+            using (JsonDocument.Parse(content))
+            {
+                memoryCache.Set(cacheKey, content, TimeSpan.FromMinutes(15));
+                return Content(content, "application/json");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to fetch air quality data from Open-Meteo CAMS");
+            return StatusCode(500, "Failed to fetch air quality data.");
+        }
+    }
 }

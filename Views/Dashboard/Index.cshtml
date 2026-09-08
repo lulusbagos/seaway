@@ -2,110 +2,226 @@
 @model SeaWay.Models.ViewModels.DashboardViewModel
 
 <div class="page-grid">
-    <article class="card-panel map-panel p-0" style="height: 65vh; min-height: 600px;">
-            <div class="map-surface map-live-surface">
-                <div id="seaWayMap" class="map-canvas" aria-label="OpenSeaMap live map"></div>
-                <div class="map-overlay map-overlay-top-left">
-                    <div class="map-weather-compact">
-                        <span class="map-weather-compact-badge">
-                            <span class="brand-pulse"></span> Cuaca Navigasi
-                        </span>
-                        <span class="map-weather-compact-divider"></span>
-                        <div class="map-weather-compact-item">
-                            <span>Angin:</span>
-                            <strong id="mapWeatherWind">-</strong>
-                            <span class="map-weather-arrow" id="mapWeatherWindDirectionArrow"><i class="bi bi-arrow-up"></i></span>
-                            <span id="mapWeatherWindDirection">-</span>
-                            <span id="mapWeatherWindDirectionDetail" class="d-none"></span>
-                        </div>
-                        <span class="map-weather-compact-divider"></span>
-                        <div class="map-weather-compact-item">
-                            <span>Hujan:</span>
-                            <strong id="mapWeatherRain">-</strong>
-                        </div>
-                        <span class="map-weather-compact-divider"></span>
-                        <div class="map-weather-compact-item">
-                            <span class="map-weather-cloud-dot" id="mapWeatherCloudDot"></span>
-                            <span>Awan:</span>
-                            <strong id="mapWeatherCloud">-</strong>
-                        </div>
-                        <span class="map-weather-compact-divider"></span>
-                        <div class="map-weather-compact-item">
-                            <span>Ombak:</span>
-                            <strong id="mapWeatherWave">-</strong>
-                        </div>
+    <article class="card-panel map-panel p-0" style="height: 72vh; min-height: 660px; display: flex; flex-direction: column;">
+        <!-- EXTERNAL CONTROL BAR: Seluruh tombol berada di luar kotak peta agar pemandangan maritim 100% bersih -->
+        <header class="map-deck-toolbar" id="mapDeckToolbar">
+            <div class="map-deck-main-row">
+                <!-- Telemetri Cuaca Navigasi Ramping -->
+                <div class="deck-weather-capsule">
+                    <span class="deck-weather-live-indicator">
+                        <span class="live-dot-pulse"></span>
+                        <span>CUACA NAVIGASI</span>
+                    </span>
+                    <span class="deck-divider"></span>
+                    <div class="deck-weather-item">
+                        <span>Angin:</span>
+                        <strong id="mapWeatherWind">-</strong>
+                        <span class="deck-weather-arrow" id="mapWeatherWindDirectionArrow"><i class="bi bi-arrow-up"></i></span>
+                        <span id="mapWeatherWindDirection">-</span>
+                        <span id="mapWeatherWindDirectionDetail" class="d-none"></span>
                     </div>
-
-                    <div class="map-controls-row mb-2">
-                        <div class="map-pill-group" aria-label="Filter Kapal">
-                            <button class="map-chip active" type="button" data-ship-filter="all">Semua</button>
-                            <button class="map-chip" type="button" data-ship-filter="online">Aktif</button>
-                            <button class="map-chip" type="button" data-ship-filter="warning">Pengawasan</button>
-                            <button class="map-chip" type="button" data-ship-filter="alert">Peringatan</button>
-                        </div>
-                        
-                        <div class="map-pill-group">
-                            <div class="dropdown d-inline-block">
-                                <button class="map-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah Tema Peta">
-                                    <i class="bi bi-palette"></i> Tema
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-dark shadow-sm" style="min-width: 150px; font-size: 0.85rem;">
-                                    <li><a class="dropdown-item map-theme-opt" href="#" data-theme="standard"><i class="bi bi-sun me-2"></i>Terang</a></li>
-                                    <li><a class="dropdown-item map-theme-opt" href="#" data-theme="dark"><i class="bi bi-moon-stars me-2"></i>Gelap</a></li>
-                                    <li><a class="dropdown-item map-theme-opt" href="#" data-theme="satellite"><i class="bi bi-globe me-2"></i>Satelit</a></li>
-                                </ul>
-                            </div>
-                            <button class="map-chip map-chip-toggle active" type="button" data-map-layer="ais">
-                                <i class="bi bi-bezier2"></i> Jalur AIS
-                            </button>
-                            <button class="map-chip map-chip-action" type="button" id="btnToggleMapFullscreen" title="Mode Layar Penuh Peta">
-                                <i class="bi bi-arrows-fullscreen"></i> Fullscreen
-                            </button>
-                        </div>
+                    <span class="deck-divider"></span>
+                    <div class="deck-weather-item">
+                        <span>Hujan:</span>
+                        <strong id="mapWeatherRain">-</strong>
                     </div>
-
-                    <div class="map-controls-row">
-                        <div class="map-pill-group">
-                            <button class="map-chip map-chip-toggle" type="button" id="btnToggleWeatherCloud">
-                                <i class="bi bi-cloud-sun"></i> Cuaca
-                            </button>
-                            <button class="map-chip map-chip-toggle" type="button" id="btnToggleMarineWave">
-                                <i class="bi bi-water"></i> Gelombang
-                            </button>
-                            <button class="map-chip map-chip-toggle" type="button" data-map-layer="bathymetry">
-                                <i class="bi bi-layers"></i> Kedalaman Laut
-                            </button>
-                            <button class="map-chip map-chip-toggle" type="button" data-map-layer="heatmap">
-                                <i class="bi bi-fire"></i> Heatmap
-                            </button>
-                        </div>
-
-                        <div class="map-pill-group">
-                            <a href="/Replay" class="map-chip text-decoration-none" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.2) 0%, rgba(2, 132, 199, 0.3) 100%); border-color: rgba(0, 240, 255, 0.4); color: #00f0ff;">
-                                <i class="bi bi-play-circle-fill"></i> Buka Replay Center
-                            </a>
-                        </div>
+                    <span class="deck-divider"></span>
+                    <div class="deck-weather-item">
+                        <span class="deck-cloud-dot" id="mapWeatherCloudDot"></span>
+                        <span>Awan:</span>
+                        <strong id="mapWeatherCloud">-</strong>
+                    </div>
+                    <span class="deck-divider"></span>
+                    <div class="deck-weather-item">
+                        <span>Ombak:</span>
+                        <strong id="mapWeatherWave">-</strong>
                     </div>
                 </div>
 
-                <div class="map-overlay map-overlay-bottom-right">
-                    <div class="map-legend-bar" style="display: flex; gap: 15px; align-items: center; background: rgba(15, 23, 42, 0.85); padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;">
-                        <span class="map-legend-item" style="color: #f8fafc; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
-                            <img src="/icon/1.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Berlayar"> Berlayar
-                        </span>
-                        <span class="map-legend-item" style="color: #cbd5e1; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
-                            <img src="/icon/4.png" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;" alt="Berhenti"> Berhenti / Offline
-                        </span>
-                        <span class="map-legend-item" style="color: #f59e0b; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
-                            <img src="/icon/2.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Pengawasan"> Pengawasan
-                        </span>
-                        <span class="map-legend-item" style="color: #ef4444; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
-                            <img src="/icon/3.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Peringatan"> Peringatan
-                        </span>
+                <!-- Quick Action Groups (Filter Armada, Tema, Lapisan, Fullscreen) -->
+                <div class="deck-actions-cluster">
+                    <!-- Filter Status Armada -->
+                    <div class="deck-segmented-group" aria-label="Filter Kapal">
+                        <button class="deck-tab active" type="button" data-ship-filter="all">Semua</button>
+                        <button class="deck-tab tab-online" type="button" data-ship-filter="online">
+                            <span class="tab-indicator dot-online"></span>Aktif
+                        </button>
+                        <button class="deck-tab tab-warning" type="button" data-ship-filter="warning">
+                            <span class="tab-indicator dot-warning"></span>Pengawasan
+                        </button>
+                        <button class="deck-tab tab-alert" type="button" data-ship-filter="alert">
+                            <span class="tab-indicator dot-alert"></span>Peringatan
+                        </button>
+                    </div>
+
+                    <!-- Dropdown Tema -->
+                    <div class="dropdown d-inline-block deck-theme-wrap">
+                        <button class="deck-action-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Ubah Tema Peta">
+                            <i class="bi bi-palette2"></i> <span>Tema</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark deck-theme-dropdown shadow-lg">
+                            <li><a class="dropdown-item map-theme-opt" href="#" data-theme="standard"><i class="bi bi-sun me-2 text-warning"></i>Terang</a></li>
+                            <li><a class="dropdown-item map-theme-opt" href="#" data-theme="dark"><i class="bi bi-moon-stars me-2 text-info"></i>Gelap</a></li>
+                            <li><a class="dropdown-item map-theme-opt" href="#" data-theme="satellite"><i class="bi bi-globe me-2 text-success"></i>Satelit</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Toggle Drawer Lapisan & Sensor -->
+                    <button class="deck-action-btn deck-layers-toggle" type="button" id="btnToggleDeckLayers" aria-expanded="false" title="Tampilkan / Sembunyikan Lapisan Peta">
+                        <i class="bi bi-layers-half"></i>
+                        <span>Lapisan</span>
+                        <span class="deck-badge" id="hudActiveLayersBadge">0</span>
+                        <i class="bi bi-chevron-down deck-chevron" id="hudChevronIcon"></i>
+                    </button>
+
+                    <!-- Fullscreen -->
+                    <button class="deck-action-btn deck-btn-icon" type="button" id="btnToggleMapFullscreen" title="Mode Layar Penuh Peta">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Collapsible Tray Lapisan & Sensor (Di Luar Peta) -->
+            <!-- Collapsible Tray Lapisan & Sensor (Di Luar Peta) -->
+            <div class="deck-layers-drawer is-collapsed" id="deckLayersDrawer">
+                <div class="deck-drawer-inner">
+                    <div class="deck-drawer-title">
+                        <i class="bi bi-sliders"></i> <span>LAPISAN & SENSOR:</span>
+                    </div>
+                    <div class="deck-layers-grid">
+                        <button class="deck-layer-chip" type="button" data-map-layer="ais">
+                            <i class="bi bi-bezier2"></i> Jalur AIS
+                        </button>
+                        <button class="deck-layer-chip" type="button" id="btnToggleWindFlow" title="Tampilkan/sembunyikan animasi aliran partikel angin">
+                            <i class="bi bi-wind"></i> Aliran Angin
+                        </button>
+
+                        <span class="deck-vsep"></span>
+                        <span class="deck-drawer-subtitle"><i class="bi bi-cloud-sun"></i> VENTUSKY:</span>
+
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="temperature">
+                            <i class="bi bi-thermometer-half text-warning"></i> Suhu
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="apparentTemp">
+                            <i class="bi bi-thermometer-sun text-info"></i> Persepsi suhu
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="precipitation">
+                            <i class="bi bi-cloud-rain-heavy text-primary"></i> Curah hujan
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="radar">
+                            <i class="bi bi-broadcast-pin text-primary"></i> Radar cuaca
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="satellite">
+                            <i class="bi bi-globe2 text-secondary"></i> Satelit
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="cloud">
+                            <i class="bi bi-cloud"></i> Awan
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="wind">
+                            <i class="bi bi-wind text-success"></i> Kec. angin
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="gusts">
+                            <i class="bi bi-flag text-warning"></i> Hembusan
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="pressure">
+                            <i class="bi bi-arrow-down-circle text-info"></i> Tekanan
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="thunderstorm">
+                            <i class="bi bi-lightning-charge text-warning"></i> Badai petir
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="humidity">
+                            <i class="bi bi-droplet-half text-info"></i> Kelembapan
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="waves">
+                            <i class="bi bi-water text-primary"></i> Laut (Ombak)
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="snow">
+                            <i class="bi bi-snow text-light"></i> Salju
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-ventusky-param="airQuality">
+                            <i class="bi bi-speedometer2 text-success"></i> Kualitas udara
+                        </button>
+
+                        <span class="deck-vsep"></span>
+
+                        <button class="deck-layer-chip" type="button" data-map-layer="bathymetry">
+                            <i class="bi bi-layers"></i> Kedalaman
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-map-layer="heatmap">
+                            <i class="bi bi-fire"></i> Heatmap
+                        </button>
+                        <a href="/Replay" class="deck-layer-chip deck-chip-replay" title="Buka Replay Center">
+                            <i class="bi bi-play-circle-fill"></i> Replay Center
+                        </a>
                     </div>
                 </div>
             </div>
-        </article>
+        </header>
+
+        <!-- KOTAK LIVE MONITOR: 100% Bersih dari tombol di sudut pandang peta -->
+        <div class="map-surface map-live-surface" style="flex: 1 1 auto; height: 100%; min-height: 520px; position: relative;">
+            <div id="seaWayMap" class="map-canvas" aria-label="OpenSeaMap live map" style="width: 100%; height: 100%;"></div>
+
+            <div class="map-overlay map-overlay-bottom-left" style="bottom: 12px; left: 12px; z-index: 1000; pointer-events: auto; display: flex; flex-direction: column; gap: 8px;">
+                <!-- Ventusky Wind Scale Card -->
+                <div id="windScaleLegend" class="wind-scale-card" style="display: none;">
+                    <div class="wind-scale-header">
+                        <span class="d-flex align-items-center gap-1"><i class="bi bi-wind text-info"></i> Aliran Angin (Ventusky)</span>
+                        <span id="windCursorReadout" class="wind-cursor-val">Arahkan kursor ke peta</span>
+                    </div>
+                    <div class="wind-scale-bar-wrapper">
+                        <div class="wind-scale-bar"></div>
+                        <div class="wind-scale-labels">
+                            <span>0</span>
+                            <span>12</span>
+                            <span>20</span>
+                            <span>30</span>
+                            <span>45</span>
+                            <span>60</span>
+                            <span>80+ km/h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ventusky Temperature Scale Card -->
+                <div id="tempScaleLegend" class="wind-scale-card" style="display: none;">
+                    <div class="wind-scale-header">
+                        <span class="d-flex align-items-center gap-1"><i class="bi bi-thermometer-sun text-warning"></i> Suhu Permukaan (Ventusky)</span>
+                        <span id="tempCursorReadout" class="wind-cursor-val">- °C</span>
+                    </div>
+                    <div class="wind-scale-bar-wrapper">
+                        <div class="temp-scale-bar"></div>
+                        <div class="wind-scale-labels">
+                            <span>-10°</span>
+                            <span>0°</span>
+                            <span>10°</span>
+                            <span>20°</span>
+                            <span>26°</span>
+                            <span>32°</span>
+                            <span>40°+ C</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-overlay map-overlay-bottom-right">
+                <div class="map-legend-bar" style="display: flex; gap: 15px; align-items: center; background: rgba(15, 23, 42, 0.85); padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;">
+                    <span class="map-legend-item" style="color: #f8fafc; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                        <img src="/icon/1.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Berlayar"> Berlayar
+                    </span>
+                    <span class="map-legend-item" style="color: #cbd5e1; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                        <img src="/icon/4.png" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;" alt="Berhenti"> Berhenti / Offline
+                    </span>
+                    <span class="map-legend-item" style="color: #f59e0b; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                        <img src="/icon/2.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Pengawasan"> Pengawasan
+                    </span>
+                    <span class="map-legend-item" style="color: #ef4444; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 500;">
+                        <img src="/icon/3.png" style="width: 24px; height: 24px; object-fit: contain;" alt="Peringatan"> Peringatan
+                    </span>
+                </div>
+            </div>
+        </div>
+    </article>
 
     <article class="card-panel">
             <div class="panel-header mb-3">
@@ -426,6 +542,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="~/js/ventusky-wind.js" asp-append-version="true"></script>
     <script>
         window.seawayMapData = @Html.Raw(JsonSerializer.Serialize(new
         {

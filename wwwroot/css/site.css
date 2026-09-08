@@ -518,11 +518,16 @@ a {
 }
 
 .map-panel {
-  min-height: 580px;
+  min-height: 640px;
   background:
     radial-gradient(circle at 20% 20%, rgba(30, 200, 200, 0.14), transparent 26%),
     radial-gradient(circle at 80% 18%, rgba(255, 184, 77, 0.12), transparent 24%),
     linear-gradient(180deg, #eaf7f9 0%, #dff0f4 100%);
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(0, 240, 255, 0.22);
 }
 
 .map-panel.is-fullscreen {
@@ -538,13 +543,382 @@ a {
   box-shadow: none !important;
 }
 
+/* ==========================================================================
+   Maritime Deck Command Toolbar (Outside Live Monitor)
+   ========================================================================== */
+.map-deck-toolbar {
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(10, 22, 36, 0.98) 0%, rgba(6, 15, 26, 0.98) 100%);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+  padding: 0.55rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1020;
+  position: relative;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+}
+
+.map-deck-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+/* 1. Telemetry Capsule */
+.deck-weather-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(3, 12, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  font-size: 0.77rem;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.deck-weather-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #2ecf86;
+  text-transform: uppercase;
+}
+
+.live-dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2ecf86;
+  box-shadow: 0 0 8px #2ecf86;
+  animation: liveDotBreathe 2s infinite ease-in-out;
+}
+
+@keyframes liveDotBreathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+.deck-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.deck-weather-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: rgba(239, 248, 251, 0.85);
+  font-size: 0.76rem;
+}
+
+.deck-weather-item strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.deck-weather-arrow {
+  display: inline-block;
+  color: #38bdf8;
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+
+.deck-cloud-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8ef7ff;
+  box-shadow: 0 0 6px #8ef7ff;
+}
+
+/* 2. Actions Cluster & Segmented Switch */
+.deck-actions-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.deck-segmented-group {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(3, 12, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.deck-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(239, 248, 251, 0.75);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  user-select: none;
+}
+
+.deck-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.deck-tab.active {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+  font-weight: 700 !important;
+}
+
+.deck-tab.tab-online.active {
+  background: rgba(46, 207, 134, 0.18) !important;
+  color: #47f8a6 !important;
+  border-color: rgba(46, 207, 134, 0.45) !important;
+  box-shadow: 0 0 14px rgba(46, 207, 134, 0.25) !important;
+}
+
+.deck-tab.tab-warning.active {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25) !important;
+}
+
+.deck-tab.tab-alert.active {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.25) !important;
+}
+
+.tab-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.deck-action-btn {
+  background: rgba(14, 28, 44, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(239, 248, 251, 0.85);
+  font-size: 0.77rem;
+  font-weight: 600;
+  padding: 0.38rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  user-select: none;
+}
+
+.deck-action-btn:hover {
+  background: rgba(20, 42, 65, 0.95);
+  border-color: rgba(0, 240, 255, 0.45);
+  color: #00f0ff;
+  transform: translateY(-1px);
+}
+
+.deck-layers-toggle {
+  border-color: rgba(0, 240, 255, 0.35);
+  color: #e0f7fa;
+}
+
+.deck-layers-toggle:not(.is-collapsed) {
+  background: rgba(0, 240, 255, 0.14) !important;
+  border-color: #00f0ff !important;
+  color: #00f0ff !important;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.3) !important;
+}
+
+.deck-badge {
+  background: linear-gradient(135deg, #00f0ff, #0284c7);
+  color: #071824;
+  font-size: 0.68rem;
+  font-weight: 800;
+  border-radius: 999px;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3rem;
+  margin-left: 0.1rem;
+  line-height: 1;
+}
+
+.deck-chevron {
+  font-size: 0.68rem;
+  transition: transform 0.25s ease;
+}
+
+.deck-layers-toggle:not(.is-collapsed) .deck-chevron {
+  transform: rotate(180deg);
+}
+
+.deck-btn-icon {
+  padding: 0.38rem 0.6rem;
+}
+
+.deck-theme-wrap {
+  position: relative;
+  z-index: 1080;
+}
+
+.deck-theme-dropdown {
+  z-index: 1200 !important;
+  background: rgba(8, 20, 32, 0.98) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  border-radius: 12px !important;
+  padding: 0.4rem !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65) !important;
+  margin-top: 0.4rem !important;
+}
+
+.deck-theme-dropdown .dropdown-item {
+  color: #e2f1f8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.42rem 0.85rem;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.deck-theme-dropdown .dropdown-item:hover {
+  background: rgba(0, 240, 255, 0.16);
+  color: #00f0ff;
+}
+
+/* 4. Collapsible Drawer for Secondary Layers */
+.deck-layers-drawer {
+  background: rgba(6, 16, 26, 0.97);
+  border-top: 1px solid rgba(0, 240, 255, 0.18);
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  padding: 0.55rem 0.85rem;
+  max-height: 150px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.22s ease,
+              padding 0.28s ease,
+              transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
+}
+
+.deck-layers-drawer.is-collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-color: transparent;
+  pointer-events: none;
+  overflow: hidden;
+  transform: translateY(-6px);
+}
+
+.deck-drawer-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.deck-drawer-title {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(0, 240, 255, 0.75);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.deck-layers-grid {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.deck-layer-chip {
+  background: rgba(14, 28, 44, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(239, 248, 251, 0.82);
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.35rem 0.78rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.deck-layer-chip:hover {
+  background: rgba(22, 45, 70, 0.95);
+  border-color: rgba(0, 240, 255, 0.35);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.deck-layer-chip.active {
+  background: rgba(0, 240, 255, 0.14) !important;
+  border-color: #00f0ff !important;
+  color: #00f0ff !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.28) !important;
+  font-weight: 700 !important;
+}
+
+.deck-chip-replay {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.18) 0%, rgba(2, 132, 199, 0.3) 100%) !important;
+  border-color: rgba(0, 240, 255, 0.45) !important;
+  color: #00f0ff !important;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.deck-chip-replay:hover {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.32) 0%, rgba(2, 132, 199, 0.5) 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.4) !important;
+}
+
 .map-surface {
   position: relative;
   height: 100%;
-  min-height: 580px;
-  border-radius: 1.5rem;
+  min-height: 520px;
+  border-radius: 0 0 1.5rem 1.5rem;
   overflow: hidden;
-  border: 1px solid rgba(12, 143, 157, 0.14);
+  border: none;
   background:
     linear-gradient(180deg, rgba(12, 143, 157, 0.08), rgba(12, 143, 157, 0.02)),
     linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px),
@@ -554,7 +928,10 @@ a {
 }
 
 .map-live-surface {
-  min-height: 480px;
+  flex: 1 1 auto;
+  min-height: 520px;
+  height: 100%;
+  position: relative;
   background: linear-gradient(180deg, rgba(7, 24, 36, 0.04), rgba(7, 24, 36, 0.02));
 }
 
@@ -566,6 +943,8 @@ a {
 .map-canvas {
   position: absolute;
   inset: 0;
+  width: 100% !important;
+  height: 100% !important;
   z-index: 0;
 }
 
@@ -5011,4 +5390,226 @@ a {
   animation: replayPulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   Ventusky Wind Streamlines & Legend Overlay
+   ========================================================================== */
+.ventusky-wind-canvas {
+  pointer-events: none;
+  z-index: 420;
+}
+
+.wind-scale-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(11, 22, 38, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-width: 280px;
+  max-width: 380px;
+  color: #f1f5f9;
+  font-family: "Manrope", "Poppins", sans-serif;
+  transition: all 0.25s ease;
+}
+
+.wind-scale-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 4px;
+}
+
+.wind-cursor-val {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #00f0ff;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.wind-readout-speed {
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.wind-readout-knots {
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.wind-readout-dir {
+  color: #38bdf8;
+  font-size: 0.85rem;
+  transition: transform 0.15s ease-out;
+}
+
+.wind-readout-compass {
+  color: #a5f3fc;
+  font-weight: 700;
+}
+
+.wind-scale-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wind-scale-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #e0f2fe 0%,
+    #38bdf8 15%,
+    #4ade80 35%,
+    #facc15 55%,
+    #fb923c 75%,
+    #f87171 90%,
+    #c084fc 100%
+  );
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+
+.wind-scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 0 1px;
+}
+
+.temp-scale-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    #7c3aed 0%,
+    #0284c7 18%,
+    #06b6d4 35%,
+    #22c55e 52%,
+    #eab308 70%,
+    #f97316 85%,
+    #ef4444 95%,
+    #be185d 100%
+  );
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+}
+
+.ventusky-temp-canvas {
+  pointer-events: none;
+  z-index: 410;
+  transition: opacity 0.3s ease;
+}
+
+.ventusky-temp-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.ventusky-temp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+  transform: translate(-50%, -50%);
+  animation: tempBadgeFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ventusky-temp-badge .temp-val {
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.ventusky-temp-badge .temp-unit {
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 700;
+  margin-left: 1px;
+}
+
+@keyframes tempBadgeFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* ==========================================================================
+   Ventusky Authentic Side Dock & Meteorological Parameter Pills
+   ========================================================================== */
+.deck-vsep {
+  display: inline-block;
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 0 4px;
+}
+
+.deck-drawer-subtitle {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #38bdf8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+}
+
+/* Authentic Ventusky White Air Quality (PM2.5) Badge */
+.ventusky-aqi-pill {
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 3px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  font-family: inherit;
+  text-align: center;
+  line-height: 1.15;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: tempBadgeFadeIn 0.3s ease forwards;
+}
+
+.ventusky-aqi-pill .aqi-val {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ventusky-aqi-pill .aqi-sub {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+
+
 
