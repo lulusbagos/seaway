@@ -188,7 +188,7 @@
         }
         const heatmapLayer = typeof L.heatLayer === "function" ? L.heatLayer(heatmapPoints, { radius: 25, blur: 15, maxZoom: 14 }) : L.layerGroup();
 
-        let currentTheme = "standard";
+        let currentTheme = "satellite";
 
         baseLayers[currentTheme].addTo(map);
         document.body.setAttribute("data-map-theme", currentTheme);
