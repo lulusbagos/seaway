@@ -141,7 +141,7 @@
                 </div>
             </header>
 
-            <main class="app-content">
+            <main class="app-content @(controllerName == "Dashboard" ? "app-content-live-dashboard" : null)">
                 @if (TempData["LoginPreview"] is string loginPreview)
                 {
                     <div class="card-panel mb-4">

@@ -2,7 +2,7 @@
 @model SeaWay.Models.ViewModels.DashboardViewModel
 
 <div class="page-grid">
-    <article class="card-panel map-panel p-0" style="height: 72vh; min-height: 660px; display: flex; flex-direction: column;">
+    <article class="card-panel map-panel p-0" style="height: calc(100vh - 165px); min-height: 520px; display: flex; flex-direction: column;">
         <!-- EXTERNAL CONTROL BAR: Seluruh tombol berada di luar kotak peta agar pemandangan maritim 100% bersih -->
         <header class="map-deck-toolbar" id="mapDeckToolbar">
             <div class="map-deck-main-row">
@@ -150,6 +150,12 @@
                         <button class="deck-layer-chip" type="button" data-map-layer="heatmap">
                             <i class="bi bi-fire"></i> Heatmap
                         </button>
+                        <button class="deck-layer-chip" type="button" data-map-layer="lighthouse">
+                            <i class="bi bi-lightbulb"></i> Mercusuar
+                        </button>
+                        <button class="deck-layer-chip" type="button" data-map-layer="graticule">
+                            <i class="bi bi-grid-3x3"></i> Grid Koordinat
+                        </button>
                         <a href="/Replay" class="deck-layer-chip deck-chip-replay" title="Buka Replay Center">
                             <i class="bi bi-play-circle-fill"></i> Replay Center
                         </a>
@@ -222,62 +228,7 @@
             </div>
         </div>
     </article>
-
-    <article class="card-panel">
-            <div class="panel-header mb-3">
-                <div>
-                    <div class="panel-eyebrow">Fleet Pulse</div>
-                    <h2 class="panel-title">Armada aktif</h2>
-                </div>
-                <div class="panel-action">24 live</div>
-            </div>
-
-            <div class="fleet-table">
-                @foreach (var vessel in Model.ActiveVessels)
-                {
-                    var fleetStatus = vessel.Status == "Live" ? "online" : vessel.Status == "Watch" ? "warning" : "alert";
-                    <div class="fleet-row" data-fleet-status="@fleetStatus">
-                        <div class="fleet-name-block">
-                            <div class="fleet-avatar">
-                                <i class="bi bi-water"></i>
-                            </div>
-                            <div>
-                                <div class="fleet-name">@vessel.Name</div>
-                                <div class="fleet-meta">@vessel.Imo &middot; @vessel.Destination</div>
-                            </div>
-                        </div>
-
-                        <div class="fleet-columns">
-                            <div>
-                                <div class="fleet-col-label">Status Kapal</div>
-                                <div class="fleet-col-value">
-                                    @if (fleetStatus == "online" || fleetStatus == "warning")
-                                    {
-                                        <span style="display: inline-block; background: var(--success); color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;">AKTIF &middot; @vessel.Status</span>
-                                    }
-                                    else
-                                    {
-                                        <span style="display: inline-block; background: var(--accent-danger); color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;">NON-AKTIF &middot; @vessel.Status</span>
-                                    }
-                                </div>
-                            </div>
-                            <div>
-                                <div class="fleet-col-label">Speed</div>
-                                <div class="fleet-col-value">@vessel.Speed</div>
-                            </div>
-                            <div>
-                                <div class="fleet-col-label">Heading</div>
-                                <div class="fleet-col-value">@vessel.Heading</div>
-                            </div>
-                            <div>
-                                <div class="fleet-col-label">Last update</div>
-                                <div class="fleet-col-value">@vessel.LastUpdate</div>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        </article>
+</div>
 
 
 
@@ -337,6 +288,9 @@
                             <div class="summary-value" id="vesselCameraStatus">-</div>
                             <div class="summary-note">
                                 Kecepatan: <span id="vesselCameraSpeed">-</span> &middot; Haluan: <span id="vesselCameraHeading">-</span>
+                            </div>
+                            <div class="summary-note mt-1" id="vesselCameraLastSeenRow" style="display: none; color: #f87171; font-weight: 600;">
+                                <i class="bi bi-clock-history me-1"></i> Terakhir Online: <span id="vesselCameraLastSeen">-</span>
                             </div>
                         </div>
                         <div class="summary-card accent">
@@ -414,7 +368,6 @@
             </div>
         </div>
     </div>
-</div>
 
 @section Styles {
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />

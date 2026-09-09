@@ -309,6 +309,8 @@
             playbackTime: document.getElementById("vesselPlaybackTime"),
             name: document.getElementById("vesselCameraName"),
             status: document.getElementById("vesselCameraStatus"),
+            lastSeen: document.getElementById("vesselCameraLastSeen"),
+            lastSeenRow: document.getElementById("vesselCameraLastSeenRow"),
             speed: document.getElementById("vesselCameraSpeed"),
             heading: document.getElementById("vesselCameraHeading")
         };
@@ -773,9 +775,13 @@
                 vesselCameraFields.unitDetail.textContent = signal.unitDetail || "-";
             }
             if (vesselCameraFields.status) {
-                vesselCameraFields.status.textContent = statusLabel;
+                const isOnlineStatus = statusLabel === "ONLINE" || statusLabel === "LIVE" || statusLabel === "AKTIF";
+                const dotHtml = isOnlineStatus
+                    ? '<span class="seaway-online-dot me-1" style="width:7px; height:7px;"></span> '
+                    : (statusLabel === "WARNING" ? '<span class="seaway-warning-dot me-1" style="width:7px; height:7px;"></span> ' : '<span class="seaway-alert-dot me-1" style="width:7px; height:7px;"></span> ');
+                vesselCameraFields.status.innerHTML = `${dotHtml}${statusLabel}`;
                 vesselCameraFields.status.classList.remove("status-online", "status-warning", "status-alert");
-                if (statusLabel === "ONLINE") {
+                if (isOnlineStatus) {
                     vesselCameraFields.status.classList.add("status-online");
                 } else if (statusLabel === "WARNING") {
                     vesselCameraFields.status.classList.add("status-warning");
@@ -788,6 +794,15 @@
             }
             if (vesselCameraFields.heading) {
                 vesselCameraFields.heading.textContent = signal.heading || "-";
+            }
+            if (vesselCameraFields.lastSeenRow && vesselCameraFields.lastSeen) {
+                const isOnlineStatus = statusLabel === "ONLINE" || statusLabel === "LIVE" || statusLabel === "AKTIF";
+                if (!isOnlineStatus && signal.lastSeen && signal.lastSeen !== "-") {
+                    vesselCameraFields.lastSeen.textContent = signal.lastSeen;
+                    vesselCameraFields.lastSeenRow.style.display = "block";
+                } else {
+                    vesselCameraFields.lastSeenRow.style.display = "none";
+                }
             }
             setCameraState("Loading camera console...", "normal");
             renderTelemetry(signal);
@@ -1013,6 +1028,7 @@
                 rawLongitude: unit.rawLongitude || "",
                 decimalLatitude: unit.decimalLatitude || "",
                 decimalLongitude: unit.decimalLongitude || "",
+                lastSeen: unit.lastSeen || unit.lastUpdate || (lastHistory?.label ?? ""),
                 telemetry: unit.telemetry || [],
                 trail: unit.trail || []
             };
@@ -1035,6 +1051,7 @@
                 rawLongitude: unit.rawLongitude || "",
                 decimalLatitude: unit.decimalLatitude || "",
                 decimalLongitude: unit.decimalLongitude || "",
+                lastSeen: liveSignal.lastSeen,
                 latitude: unit.latitude,
                 longitude: unit.longitude,
                 telemetry: unit.telemetry || [],
@@ -1134,12 +1151,14 @@
         };
 
         const buildIcon = (signal) => {
-            const status = (signal.status || "online").toLowerCase();
-            const toneClass = status === "alert" ? "alert" : status === "warning" ? "warning" : "online";
+            const rawStatus = (signal.status || "online").toLowerCase();
+            const toneClass = rawStatus === "alert" ? "alert" : rawStatus === "warning" ? "warning" : "online";
+            const isOnline = rawStatus === "online" || rawStatus === "live" || rawStatus === "active" || rawStatus === "normal" || toneClass === "online";
             const imageName = getUnitIconFile(signal);
             const headingDegrees = parseHeadingDegrees(signal.heading);
             const unitNameText = escapeHtml(signal.unitName || signal.unitCode || signal.name || "");
             const speedText = escapeHtml(signal.speedLabel || "");
+            const lastSeenText = signal.lastSeen || "";
             
             const shipId = signal.deviceId || signal.name;
             const weather = fleetWeatherMap[shipId];
@@ -1182,26 +1201,37 @@
                 }
             }
 
+            const statusDotHtml = isOnline
+                ? `<span class="seaway-online-dot" title="Status: Online"></span>`
+                : (toneClass === "warning" ? `<span class="seaway-warning-dot" title="Status: Pengawasan"></span>` : `<span class="seaway-alert-dot" title="Status: Alert"></span>`);
+
+            const bottomPillHtml = isOnline
+                ? `<div style="background: rgba(229, 57, 53, 0.95); color: #ffffff; font-family: monospace; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.5); white-space: nowrap; margin-top: 2px;">
+                       ${speedText}
+                   </div>`
+                : `<div style="background: rgba(15, 23, 42, 0.95); color: #fca5a5; font-family: monospace; font-size: 0.64rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; border: 1px solid rgba(239, 68, 68, 0.65); box-shadow: 0 2px 8px rgba(0,0,0,0.6); white-space: nowrap; margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; backdrop-filter: blur(4px);">
+                       <i class="bi bi-clock-history" style="font-size: 0.65rem;"></i> ${lastSeenText ? `Terakhir: ${escapeHtml(lastSeenText)}` : "Offline"}
+                   </div>`;
+
             return L.divIcon({
                 className: "seaway-marker-wrap",
                 html: `
                     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;">
-                        <div style="background: rgba(15, 23, 42, 0.92); color: #00f0ff; font-family: monospace; font-size: 0.72rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; border: 1px solid rgba(0, 240, 255, 0.5); box-shadow: 0 4px 12px rgba(0,0,0,0.6); white-space: nowrap; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; backdrop-filter: blur(8px);">
-                            ${unitNameText}
+                        <div style="background: rgba(10, 20, 34, 0.92); color: #00f0ff; font-family: monospace; font-size: 0.70rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; border: 1px solid rgba(0, 240, 255, 0.45); box-shadow: 0 4px 12px rgba(0,0,0,0.6); white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.03em; backdrop-filter: blur(8px); display: inline-flex; align-items: center; justify-content: center; gap: 5px;" title="${unitNameText}">
+                            ${statusDotHtml}
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${unitNameText}</span>
                         </div>
-                        <div class="MainGuard-marker ${toneClass}" style="position: relative; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;">
-                            <img class="MainGuard-marker-image" src="${assetBase}/${imageName}" alt="${unitNameText}" style="width: 60px; height: 60px; transform: rotate(${headingDegrees}deg); transition: transform 0.3s ease; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));" />
+                        <div class="MainGuard-marker ${toneClass}" style="position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                            <img class="MainGuard-marker-image" src="${assetBase}/${imageName}" alt="${unitNameText}" style="width: 56px; height: 56px; transform: rotate(${headingDegrees}deg); transition: transform 0.3s ease; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));" />
                             <span class="MainGuard-marker-ring"></span>
                             ${cloudHtml}
                         </div>
-                        <div style="background: rgba(229, 57, 53, 0.95); color: #ffffff; font-family: monospace; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 2px 8px rgba(0,0,0,0.5); white-space: nowrap; margin-top: 2px;">
-                            ${speedText}
-                        </div>
+                        ${bottomPillHtml}
                         ${marineHtml}
                     </div>
                 `,
-                iconSize: [140, 120],
-                iconAnchor: [70, 60]
+                iconSize: [160, 110],
+                iconAnchor: [80, 55]
             });
         };
 
@@ -1235,6 +1265,7 @@
                 rawLongitude: signal.rawLongitude || "",
                 decimalLatitude: signal.decimalLatitude || "",
                 decimalLongitude: signal.decimalLongitude || "",
+                lastSeen: signal.lastSeen || signal.lastUpdate || "",
                 latitude: signal.latitude,
                 longitude: signal.longitude,
                 telemetry: signal.telemetry || [],
@@ -1364,7 +1395,8 @@
             history: historyTrackLayer,
             bathymetry: bathymetryLayer,
             heatmap: heatmapLayer,
-            lighthouse: lighthouseLayer
+            lighthouse: lighthouseLayer,
+            graticule: graticuleLayer
         };
 
         const loadHistoryTracks = async () => {
@@ -1561,25 +1593,13 @@
             }
         };
 
-        map.on('moveend', drawGraticule);
-        map.on('overlayadd', (e) => {
-            if (e.layer === graticuleLayer) drawGraticule();
-            if (e.layer === lighthouseLayer) {
-                const sourceUnit = currentSignal || liveUnitSeed;
-                if (sourceUnit && typeof sourceUnit.latitude === "number" && typeof sourceUnit.longitude === "number") {
-                    fetchLighthouses(sourceUnit.latitude, sourceUnit.longitude);
-                }
+        map.on('moveend', () => {
+            if (map.hasLayer(graticuleLayer)) {
+                drawGraticule();
             }
         });
-        drawGraticule();
 
         loadHistoryTracks();
-
-        L.control.layers(null, {
-            "AIS Trails": aisTrailLayer,
-            "Mercusuar (Lighthouses)": lighthouseLayer,
-            "Grid Koordinat (Graticule)": graticuleLayer
-        }, { collapsed: false, position: "topright" }).addTo(map);
 
         const toggleButtons = document.querySelectorAll(`[data-map-layer]`);
         toggleButtons.forEach((button) => {
@@ -1592,9 +1612,17 @@
                 const isVisible = map.hasLayer(overlays[layerKey]);
                 if (isVisible) {
                     map.removeLayer(overlays[layerKey]);
+                    if (layerKey === "graticule") graticuleLayer.clearLayers();
                     button.classList.remove("active");
                 } else {
                     map.addLayer(overlays[layerKey]);
+                    if (layerKey === "graticule") drawGraticule();
+                    if (layerKey === "lighthouse") {
+                        const sourceUnit = currentSignal || liveUnitSeed;
+                        if (sourceUnit && typeof sourceUnit.latitude === "number" && typeof sourceUnit.longitude === "number") {
+                            fetchLighthouses(sourceUnit.latitude, sourceUnit.longitude);
+                        }
+                    }
                     button.classList.add("active");
                 }
             });

@@ -381,14 +381,43 @@ a {
   padding: 1.6rem 1.7rem 1.9rem;
 }
 
+.app-content-live-dashboard {
+  padding: 0.65rem 1rem 0.6rem;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-content-live-dashboard .page-grid {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+}
+
+.app-content-live-dashboard .map-panel {
+  flex: 1 1 auto;
+  height: calc(100vh - 165px) !important;
+  min-height: 520px;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
 .app-footer {
   margin-top: auto;
-  padding: 0 1.7rem 1.6rem;
+  padding: 0.65rem 1.7rem 0.8rem;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 1rem;
   color: var(--ink-muted);
-  font-size: 0.92rem;
+  font-size: 0.85rem;
+  border-top: 1px solid rgba(13, 27, 42, 0.05);
+  width: 100%;
 }
 
 .page-grid {
@@ -518,15 +547,12 @@ a {
 }
 
 .map-panel {
-  min-height: 640px;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(30, 200, 200, 0.14), transparent 26%),
-    radial-gradient(circle at 80% 18%, rgba(255, 184, 77, 0.12), transparent 24%),
-    linear-gradient(180deg, #eaf7f9 0%, #dff0f4 100%);
+  min-height: 520px;
+  background: #0b1523;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  border-radius: 1.5rem;
+  border-radius: 1.25rem;
   border: 1px solid rgba(0, 240, 255, 0.22);
 }
 
@@ -1482,6 +1508,135 @@ a {
   white-space: nowrap;
   box-shadow: 0 8px 20px rgba(13, 27, 42, 0.16);
 }
+
+/* ==========================================================================
+   SEAWAY VESSEL STATUS INDICATORS (ONLINE GREEN BLINKING DOT)
+   ========================================================================== */
+
+.seaway-online-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e, 0 0 14px rgba(34, 197, 94, 0.8);
+  position: relative;
+  flex-shrink: 0;
+  vertical-align: middle;
+  animation: seawayGreenPulse 1.2s ease-in-out infinite alternate;
+}
+
+.seaway-online-dot::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34, 197, 94, 0.85);
+  animation: seawayGreenRipple 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.seaway-warning-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.6);
+  position: relative;
+  flex-shrink: 0;
+  vertical-align: middle;
+  animation: seawayWarningPulse 1.6s ease-in-out infinite alternate;
+}
+
+.seaway-alert-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444, 0 0 12px rgba(239, 68, 68, 0.6);
+  position: relative;
+  flex-shrink: 0;
+  vertical-align: middle;
+  animation: seawayAlertPulse 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes seawayGreenPulse {
+  0% {
+    background-color: #15803d;
+    opacity: 0.5;
+    transform: scale(0.85);
+    box-shadow: 0 0 3px rgba(21, 128, 61, 0.5);
+  }
+  100% {
+    background-color: #00ff88;
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 10px #00ff88, 0 0 18px rgba(0, 255, 136, 0.9);
+  }
+}
+
+@keyframes seawayGreenRipple {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes seawayWarningPulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes seawayAlertPulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.MainGuard-marker.online .MainGuard-marker-ring {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(0, 255, 136, 0.45);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.25);
+  animation: markerRadarPulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes markerRadarPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1.25);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
 
 .seaway-harbour-icon-wrap,
 .seaway-weather-icon-wrap {

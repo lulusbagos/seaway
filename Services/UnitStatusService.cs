@@ -186,7 +186,7 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
                     }
                     else if (prop.Value.ValueKind == JsonValueKind.String)
                     {
-                        string str = prop.Value.GetString();
+                        string? str = prop.Value.GetString();
                         if (!string.IsNullOrWhiteSpace(str) && str != "0" && str != "0.0" && str != "0.000000" && !str.StartsWith("00000000"))
                         {
                             include = true;
@@ -202,6 +202,20 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
                     if (include)
                     {
                         telemetryList.Add(new UnitTelemetryFieldViewModel { Label = prop.Name, Value = propValue, Tone = "neutral" });
+                    }
+                }
+
+                var lastSeenFormatted = gpsTime.ToString("dd MMM HH:mm");
+                if (!online)
+                {
+                    var lastRecorded = await dbContext.HistoryTracks
+                        .Where(x => x.UnitCode == unitCode)
+                        .OrderByDescending(x => x.RecordedAt)
+                        .FirstOrDefaultAsync();
+
+                    if (lastRecorded != null)
+                    {
+                        lastSeenFormatted = lastRecorded.RecordedAt.ToString("dd MMM HH:mm");
                     }
                 }
 
@@ -224,7 +238,7 @@ public class UnitStatusService(IHttpClientFactory httpClientFactory, UnitMasterS
                     Latitude = latitude,
                     Longitude = longitude,
                     PositionText = $"{latitude:0.######},{longitude:0.######}",
-                    LastSeen = gpsTime.ToString("dd MMM HH:mm"),
+                    LastSeen = lastSeenFormatted,
                     UnitKind = unitType,
                     Icon = iconKey,
                     CameraUrl = cameraUrl,

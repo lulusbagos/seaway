@@ -50,6 +50,7 @@ public class DashboardController(SeawayDemoDataService demoDataService, UnitStat
                 RawLongitude = snap.RawLongitude,
                 DecimalLatitude = snap.DecimalLatitude,
                 DecimalLongitude = snap.DecimalLongitude,
+                LastSeen = snap.LastSeen,
                 Telemetry = snap.Telemetry,
                 Trail = snap.Trail
             });

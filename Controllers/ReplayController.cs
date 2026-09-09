@@ -18,7 +18,7 @@ public class ReplayController(UnitMasterService unitMasterService) : Controller
 
         var initialStart = !string.IsNullOrEmpty(start) 
             ? start 
-            : DateTime.UtcNow.AddDays(-2).ToString("yyyy-MM-dd");
+            : DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-dd");
         
         var initialEnd = !string.IsNullOrEmpty(end) 
             ? end 
@@ -27,7 +27,7 @@ public class ReplayController(UnitMasterService unitMasterService) : Controller
         var vm = new ReplayViewModel
         {
             Units = activeUnits,
-            SelectedUnitCode = unitCode ?? (activeUnits.FirstOrDefault()?.UnitCode ?? ""),
+            SelectedUnitCode = unitCode ?? "all",
             MapCenterLatitude = -2.55,
             MapCenterLongitude = 118.65,
             MapZoom = 6,

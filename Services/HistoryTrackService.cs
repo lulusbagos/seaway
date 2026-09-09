@@ -7,12 +7,20 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
 {
     public async Task<List<UnitHistoryTrackViewModel>> GetHistoryForLast48HoursAsync()
     {
-        return await GetHistoryAsync(null, null, null);
+        return await GetHistoryAsync(null, null, (string?)null);
     }
 
     public async Task<List<UnitHistoryTrackViewModel>> GetHistoryAsync(DateTime? start = null, DateTime? end = null, string? unitCode = null)
     {
-        var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddHours(-24), DateTimeKind.Unspecified);
+        var codes = string.IsNullOrWhiteSpace(unitCode)
+            ? new List<string>()
+            : unitCode.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        return await GetHistoryAsync(start, end, codes);
+    }
+
+    public async Task<List<UnitHistoryTrackViewModel>> GetHistoryAsync(DateTime? start = null, DateTime? end = null, IEnumerable<string>? unitCodes = null)
+    {
+        var cutoff = DateTime.SpecifyKind(DateTime.UtcNow.AddDays(-30), DateTimeKind.Unspecified);
         var query = dbContext.HistoryTracks.AsQueryable();
 
         if (start.HasValue)
@@ -29,9 +37,14 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
             query = query.Where(t => t.RecordedAt <= end.Value);
         }
 
-        if (!string.IsNullOrEmpty(unitCode) && !unitCode.Equals("all", StringComparison.OrdinalIgnoreCase))
+        var validCodes = unitCodes?
+            .Where(c => !string.IsNullOrWhiteSpace(c) && !c.Equals("all", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (validCodes != null && validCodes.Count > 0)
         {
-            query = query.Where(t => t.UnitCode == unitCode);
+            query = query.Where(t => validCodes.Contains(t.UnitCode));
         }
 
         var tracks = await query
@@ -39,14 +52,15 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
             .ToListAsync();
 
         var activeUnitsQuery = dbContext.UnitMasters.Where(u => u.IsActive);
-        if (!string.IsNullOrEmpty(unitCode) && !unitCode.Equals("all", StringComparison.OrdinalIgnoreCase))
+        if (validCodes != null && validCodes.Count > 0)
         {
-            activeUnitsQuery = activeUnitsQuery.Where(u => u.UnitCode == unitCode);
+            activeUnitsQuery = activeUnitsQuery.Where(u => validCodes.Contains(u.UnitCode));
         }
         var activeUnits = await activeUnitsQuery.ToListAsync();
 
         var result = new List<UnitHistoryTrackViewModel>();
-        var grouped = tracks.GroupBy(t => t.UnitCode).ToDictionary(g => g.Key, g => g.ToList());
+        var grouped = tracks.GroupBy(t => t.UnitCode, StringComparer.OrdinalIgnoreCase)
+                            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
         foreach (var unitMaster in activeUnits)
         {
@@ -65,7 +79,7 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
                         SpeedKnots = p.SpeedKnots ?? 0,
                         HeadingDeg = p.HeadingDeg ?? 0,
                         RecordedAt = p.RecordedAt,
-                        TimeLabel = p.RecordedAt.ToString("HH:mm")
+                        TimeLabel = p.RecordedAt.ToString("dd/MM HH:mm")
                     };
 
                     if (lastValidPoint == null)
@@ -77,11 +91,11 @@ public class HistoryTrackService(SeaWayDbContext dbContext, UnitStatusService un
                     {
                         double dist = HaversineDistanceMeters(lastValidPoint.Latitude, lastValidPoint.Longitude, pt.Latitude, pt.Longitude);
                         double hours = (pt.RecordedAt - lastValidPoint.RecordedAt).TotalHours;
-                        if (hours <= 0) hours = 0.01;
+                        if (hours <= 0) hours = 0.001;
                         double calcSpeedKnots = (dist / 1852.0) / hours;
 
-                        // 100 knots is ~185 km/h. No ship goes this fast. If speed > 100, it's a spike!
-                        if (calcSpeedKnots < 100)
+                        // 100 knots is ~185 km/h. If speed < 100 or gap > 24 hours, accept point
+                        if (calcSpeedKnots < 100 || hours > 24)
                         {
                             points.Add(pt);
                             lastValidPoint = pt;

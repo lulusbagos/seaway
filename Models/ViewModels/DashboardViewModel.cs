@@ -78,6 +78,8 @@ public class MapSignalViewModel
 
     public string? DecimalLongitude { get; init; }
 
+    public string? LastSeen { get; init; }
+
     public IReadOnlyList<UnitTelemetryFieldViewModel>? Telemetry { get; init; }
 
     public IReadOnlyList<UnitStatusTrailPointViewModel>? Trail { get; init; }

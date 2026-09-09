@@ -87,13 +87,46 @@
         const lighthouseLayer = L.layerGroup().addTo(map);
 
         // UI DOM Elements
-        const unitSelect = document.getElementById("replayUnitSelect");
+        const unitCheckboxes = document.querySelectorAll(".replay-unit-checkbox");
+        const unitDropdownLabel = document.getElementById("replayUnitDropdownLabel");
+        const unitCountBadge = document.getElementById("replayUnitCountBadge");
+        const btnSelectAllUnits = document.getElementById("btnSelectAllUnits");
+        const btnClearAllUnits = document.getElementById("btnClearAllUnits");
         const startDateInput = document.getElementById("replayStartDate");
         const endDateInput = document.getElementById("replayEndDate");
         const btnLoadReplay = document.getElementById("btnLoadReplay");
         const loadReplayIcon = document.getElementById("loadReplayIcon");
         const btnResetReplay = document.getElementById("btnResetReplay");
         const presetPills = document.querySelectorAll(".preset-pill");
+
+        // Helper: Get selected unit codes
+        const getSelectedUnitCodes = () => {
+            const checked = Array.from(document.querySelectorAll(".replay-unit-checkbox:checked"));
+            return checked.map(cb => cb.value);
+        };
+
+        // Helper: Update dropdown label & count badge
+        const updateUnitDropdownUI = () => {
+            const all = document.querySelectorAll(".replay-unit-checkbox");
+            const checked = Array.from(document.querySelectorAll(".replay-unit-checkbox:checked"));
+            if (!unitDropdownLabel || !unitCountBadge) return;
+
+            unitCountBadge.textContent = String(checked.length);
+            if (checked.length === 0) {
+                unitDropdownLabel.textContent = "Pilih minimal 1 kapal";
+                unitCountBadge.className = "badge bg-secondary text-white";
+            } else if (checked.length === all.length) {
+                unitDropdownLabel.textContent = `Semua Kapal (${all.length} Kapal)`;
+                unitCountBadge.className = "badge bg-info text-dark";
+            } else if (checked.length === 1) {
+                const labelSpan = checked[0].closest("label")?.querySelector("span span")?.textContent;
+                unitDropdownLabel.textContent = labelSpan || checked[0].value;
+                unitCountBadge.className = "badge bg-primary text-white";
+            } else {
+                unitDropdownLabel.textContent = `${checked.length} Kapal Dipilih`;
+                unitCountBadge.className = "badge bg-primary text-white";
+            }
+        };
 
         // HUD Elements
         const hudVesselName = document.getElementById("hudVesselName");
@@ -135,6 +168,7 @@
 
         // State variables
         let loadedTracks = [];
+        let activeTrackIndex = 0;
         let isPlaying = false;
         let playbackProgress = 0; // 0 to 1
         let playbackSpeed = 1; // 1x, 2x, 5x, 10x, 25x
@@ -196,8 +230,9 @@
                     <div class="replay-vessel-marker-wrapper" style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
                         <div class="replay-vessel-pulse"></div>
                         <img src="/icon/1.png" class="replay-vessel-image" style="width: 32px; height: 32px; object-fit: contain; transform: rotate(${heading}deg); filter: drop-shadow(0 0 8px rgba(0,240,255,0.8)); pointer-events: none;" alt="Vessel" />
-                        <div class="replay-vessel-label" style="position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.9); color: #00f0ff; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(0,240,255,0.4); white-space: nowrap; pointer-events: none; margin-top: 2px;">
-                            ${name}
+                        <div class="replay-vessel-label" style="position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.9); color: #00f0ff; font-weight: 700; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(0,240,255,0.4); white-space: nowrap; pointer-events: none; margin-top: 2px; display: inline-flex; align-items: center; gap: 4px;">
+                            <span class="seaway-online-dot" style="width: 6px; height: 6px;"></span>
+                            <span>${name}</span>
                         </div>
                     </div>
                 `,
@@ -275,7 +310,7 @@
 
         // Load History Tracks from API
         const loadHistoryTracks = async () => {
-            const unitCode = unitSelect?.value || "all";
+            const selectedCodes = getSelectedUnitCodes();
             const start = startDateInput?.value || "";
             const end = endDateInput?.value || "";
 
@@ -293,13 +328,20 @@
             markersLayer.clearLayers();
             playbackVesselLayer.clearLayers();
             loadedTracks = [];
+            activeTrackIndex = 0;
 
             try {
                 let url = `${config.historyApi || "/api/history-tracks"}?`;
                 const params = new URLSearchParams();
                 if (start) params.append("start", start);
                 if (end) params.append("end", end);
-                if (unitCode && unitCode !== "all") params.append("unitCode", unitCode);
+
+                const allCheckboxes = document.querySelectorAll(".replay-unit-checkbox");
+                if (selectedCodes.length > 0 && selectedCodes.length < allCheckboxes.length) {
+                    params.append("unitCode", selectedCodes.join(","));
+                } else if (selectedCodes.length === 0) {
+                    params.append("unitCode", "__none__");
+                }
                 url += params.toString();
 
                 const res = await fetch(url, { headers: { Accept: "application/json" } });
@@ -386,6 +428,12 @@
                         lineJoin: "round"
                     }).addTo(trackLayer);
 
+                    const trackIdx = index;
+                    mainPolyline.on("click", () => {
+                        activeTrackIndex = trackIdx;
+                        updatePlaybackPosition(playbackProgress);
+                    });
+
                     // Directional Arrows along path
                     for (let i = 0; i < latLngs.length - 1; i += Math.max(1, Math.floor(latLngs.length / 15))) {
                         const p1 = latLngs[i];
@@ -453,6 +501,11 @@
                         icon: createReplayShipIcon(trackItem.unitName, startPoint.headingDeg),
                         zIndexOffset: 1500
                     }).addTo(playbackVesselLayer);
+
+                    animatedMarker.on("click", () => {
+                        activeTrackIndex = trackIdx;
+                        updatePlaybackPosition(playbackProgress);
+                    });
 
                     loadedTracks.push({
                         unitCode: trackItem.unitCode,
@@ -523,10 +576,10 @@
             }
 
             let html = "";
-            loadedTracks.forEach((track) => {
+            loadedTracks.forEach((track, trackIdx) => {
                 html += `
                     <div class="drawer-track-section mb-3">
-                        <div class="d-flex align-items-center justify-content-between p-2 rounded mb-1" style="background: rgba(0,240,255,0.1); border: 1px solid rgba(0,240,255,0.2);">
+                        <div class="d-flex align-items-center justify-content-between p-2 rounded mb-1 drawer-track-header" data-track-index="${trackIdx}" style="background: rgba(0,240,255,0.1); border: 1px solid rgba(0,240,255,0.2); cursor: pointer;">
                             <span class="fw-bold" style="color: #00f0ff; font-size: 0.85rem;"><i class="bi bi-ship me-1"></i> ${track.unitName}</span>
                             <span class="badge bg-dark text-info">${track.points.length} Titik</span>
                         </div>
@@ -536,7 +589,7 @@
                 track.points.forEach((pt, pIdx) => {
                     const ratio = track.points.length > 1 ? (pIdx / (track.points.length - 1)) : 0;
                     html += `
-                        <div class="waypoint-item-row p-2 rounded text-white" data-ratio="${ratio.toFixed(4)}" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; font-size: 0.75rem; transition: background 0.15s ease;">
+                        <div class="waypoint-item-row p-2 rounded text-white" data-track-index="${trackIdx}" data-ratio="${ratio.toFixed(4)}" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; font-size: 0.75rem; transition: background 0.15s ease;">
                             <div class="d-flex justify-content-between">
                                 <span class="fw-bold text-info"><i class="bi bi-geo-alt me-1"></i> #${pIdx + 1} &middot; ${pt.timeLabel}</span>
                                 <span class="badge bg-secondary">${pt.speedKnots.toFixed(1)} Knots</span>
@@ -554,10 +607,20 @@
 
             waypointListContainer.innerHTML = html;
 
-            // Add click listeners to rows
+            // Add click listeners to headers and rows
+            waypointListContainer.querySelectorAll(".drawer-track-header").forEach(hdr => {
+                hdr.addEventListener("click", () => {
+                    const trackIdx = parseInt(hdr.dataset.trackIndex, 10) || 0;
+                    activeTrackIndex = trackIdx;
+                    updatePlaybackPosition(playbackProgress);
+                });
+            });
+
             waypointListContainer.querySelectorAll(".waypoint-item-row").forEach(row => {
                 row.addEventListener("click", () => {
+                    const trackIdx = parseInt(row.dataset.trackIndex, 10) || 0;
                     const ratio = parseFloat(row.dataset.ratio) || 0;
+                    activeTrackIndex = trackIdx;
                     playbackProgress = ratio;
                     updatePlaybackPosition(ratio);
                 });
@@ -576,6 +639,7 @@
             if (playbackProgressPercent) playbackProgressPercent.textContent = `${percent}%`;
 
             let leadVesselPos = null;
+            const targetTrack = loadedTracks[activeTrackIndex] || loadedTracks[0];
 
             loadedTracks.forEach((track, tIdx) => {
                 const pts = track.points;
@@ -618,10 +682,10 @@
                     }
                 }
 
-                if (tIdx === 0) {
+                if (track === targetTrack) {
                     leadVesselPos = [currentLat, currentLng];
 
-                    // Update HUD with lead vessel
+                    // Update HUD with focused vessel
                     if (hudVesselName) hudVesselName.textContent = track.unitName;
                     if (hudSpeedValue) hudSpeedValue.textContent = currentSpeed.toFixed(1);
                     if (hudSpeedKmh) hudSpeedKmh.textContent = `${(currentSpeed * 1.852).toFixed(1)} km/h`;
@@ -815,20 +879,41 @@
             });
         });
 
+        // Checkbox events
+        unitCheckboxes.forEach(cb => {
+            cb.addEventListener("change", () => {
+                updateUnitDropdownUI();
+                loadHistoryTracks();
+            });
+        });
+
+        btnSelectAllUnits?.addEventListener("click", (e) => {
+            e.preventDefault();
+            unitCheckboxes.forEach(cb => { cb.checked = true; });
+            updateUnitDropdownUI();
+            loadHistoryTracks();
+        });
+
+        btnClearAllUnits?.addEventListener("click", (e) => {
+            e.preventDefault();
+            unitCheckboxes.forEach(cb => { cb.checked = false; });
+            updateUnitDropdownUI();
+            loadHistoryTracks();
+        });
+
         // Search & Reset
         btnLoadReplay?.addEventListener("click", loadHistoryTracks);
 
         btnResetReplay?.addEventListener("click", () => {
             const now = new Date();
-            const past = new Date(now.getTime() - 24 * 3600 * 1000);
+            const past = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
             const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
             if (startDateInput) startDateInput.value = formatDate(past);
             if (endDateInput) endDateInput.value = formatDate(now);
-            if (unitSelect) unitSelect.value = "all";
+            unitCheckboxes.forEach(cb => { cb.checked = true; });
+            updateUnitDropdownUI();
             loadHistoryTracks();
         });
-
-        unitSelect?.addEventListener("change", loadHistoryTracks);
 
         // Drawer Toggle
         btnToggleWaypointDrawer?.addEventListener("click", () => {

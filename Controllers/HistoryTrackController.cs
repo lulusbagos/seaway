@@ -9,7 +9,7 @@ namespace SeaWay.Controllers;
 public class HistoryTrackController(HistoryTrackService historyTrackService) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] string? start, [FromQuery] string? end, [FromQuery] string? unitCode)
+    public async Task<IActionResult> Get([FromQuery] string? start, [FromQuery] string? end, [FromQuery] string? unitCode, [FromQuery] string[]? unitCodes)
     {
         DateTime? startDate = null;
         DateTime? endDate = null;
@@ -27,7 +27,18 @@ public class HistoryTrackController(HistoryTrackService historyTrackService) : C
             endDate = DateTime.SpecifyKind(parsedEnd, DateTimeKind.Unspecified);
         }
 
-        var historyData = await historyTrackService.GetHistoryAsync(startDate, endDate, unitCode);
+        var codes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(unitCode))
+        {
+            codes.AddRange(unitCode.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+        if (unitCodes != null && unitCodes.Length > 0)
+        {
+            codes.AddRange(unitCodes);
+        }
+        codes = codes.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        var historyData = await historyTrackService.GetHistoryAsync(startDate, endDate, codes);
         return Json(historyData);
     }
 
